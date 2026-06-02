@@ -198,7 +198,7 @@ export function DiscoverFlow() {
                 目的地
               </label>
               <Input
-                placeholder="例：福岡、台北、大阪"
+                placeholder="例：台北、東京、首爾、釜山、大阪、福岡"
                 value={destinationInput}
                 onChange={(e) => setDestinationInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && startDiscover()}
