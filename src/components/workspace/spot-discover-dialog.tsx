@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import { Loader2, MapPin, Utensils, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,7 +71,9 @@ export function SpotDiscoverDialog({
           <DialogTitle className="text-emerald-950">
             {spot?.name ?? "景點探索"}
           </DialogTitle>
-          <DialogDescription>美食推薦 · 附近景點 · 照片</DialogDescription>
+          <DialogDescription>
+            美食推薦 · 附近景點 · 參考照片（Wikipedia / CC 圖庫）
+          </DialogDescription>
         </DialogHeader>
 
         {loading && (
@@ -117,21 +118,35 @@ export function SpotDiscoverDialog({
                 />
               </div>
             )}
-            {data.photoUrl && (
-              <div className="relative aspect-video overflow-hidden rounded-xl border border-emerald-100">
-                <Image
-                  src={data.photoUrl}
-                  alt={spot?.name ?? "景點照片"}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
-                {data.photoCredit && (
-                  <p className="absolute bottom-0 left-0 right-0 bg-black/50 px-2 py-1 text-[10px] text-white">
-                    {data.photoCredit}
-                  </p>
-                )}
-              </div>
+            {data.photos.length > 0 && (
+              <section>
+                <h4 className="mb-2 text-xs font-medium text-emerald-800">
+                  參考照片
+                  <span className="ml-1 font-normal text-muted-foreground">
+                    （非 Instagram，來自開放圖庫／社群 CC 作品）
+                  </span>
+                </h4>
+                <div className="-mx-1 flex gap-2 overflow-x-auto pb-1">
+                  {data.photos.map((photo, i) => (
+                    <div
+                      key={`${photo.url}-${i}`}
+                      className="relative h-36 w-52 shrink-0 overflow-hidden rounded-lg border border-emerald-100"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={photo.url}
+                        alt={`${spot?.name ?? "景點"} ${i + 1}`}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                      />
+                      <p className="absolute bottom-0 left-0 right-0 bg-black/55 px-1.5 py-0.5 text-[9px] leading-tight text-white">
+                        {photo.credit}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
             )}
 
             <p className="text-sm leading-relaxed text-emerald-900/90">

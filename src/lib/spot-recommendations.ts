@@ -4,55 +4,20 @@ import {
   type AiCredentials,
 } from "@/lib/ai-credentials";
 import { aiComplete } from "@/lib/ai-providers/complete";
+import { fetchPlacePhotos, type PlacePhoto } from "@/lib/place-photos";
 import { buildFallbackRecommendations } from "@/lib/spot-recommendations-fallback";
 
 export type SpotRecommendations = {
   summary: string;
   foods: { name: string; tip: string }[];
   sights: { name: string; tip: string }[];
+  photos: PlacePhoto[];
   photoUrl: string | null;
   photoCredit: string | null;
   source: "ai" | "fallback";
   provider?: string;
   aiError?: string;
 };
-
-async function fetchWikipediaPhoto(query: string): Promise<{
-  url: string | null;
-  credit: string | null;
-}> {
-  const clean = query.replace(/\(.*\)/, "").trim().split(/[·&]/)[0].trim();
-  const tries = [clean, query.trim()];
-
-  for (const lang of ["zh", "ja", "en"]) {
-    for (const title of tries) {
-      try {
-        const encoded = encodeURIComponent(title);
-        const res = await fetch(
-          `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encoded}`,
-          { cache: "force-cache", next: { revalidate: 86400 } }
-        );
-        if (!res.ok) continue;
-        const data = (await res.json()) as {
-          thumbnail?: { source: string };
-          originalimage?: { source: string };
-          title?: string;
-        };
-        const url =
-          data.thumbnail?.source ?? data.originalimage?.source ?? null;
-        if (url) {
-          return {
-            url,
-            credit: `Wikipedia (${lang}) · ${data.title ?? title}`,
-          };
-        }
-      } catch {
-        continue;
-      }
-    }
-  }
-  return { url: null, credit: null };
-}
 
 async function generateWithAi(
   credentials: AiCredentials,
@@ -102,7 +67,7 @@ export async function generateSpotRecommendations(
   provider?: string | null,
   apiKey?: string | null
 ): Promise<SpotRecommendations> {
-  const photo = await fetchWikipediaPhoto(spotName);
+  const photos = await fetchPlacePhotos(spotName, latitude, longitude, 6);
   const credentials = resolveAiCredentials(provider, apiKey);
 
   let content: Pick<SpotRecommendations, "summary" | "foods" | "sights">;
@@ -131,10 +96,13 @@ export async function generateSpotRecommendations(
     content = buildFallbackRecommendations(spotName, notes);
   }
 
+  const lead = photos[0] ?? null;
+
   return {
     ...content,
-    photoUrl: photo.url,
-    photoCredit: photo.credit,
+    photos,
+    photoUrl: lead?.url ?? null,
+    photoCredit: lead?.credit ?? null,
     source,
     provider: providerLabel,
     aiError,
