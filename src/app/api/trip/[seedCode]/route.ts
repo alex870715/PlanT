@@ -25,6 +25,7 @@ export async function GET(
           orderBy: { sortOrder: "asc" },
         },
         members: true,
+        tasks: { orderBy: { sortOrder: "asc" } },
       },
     });
 

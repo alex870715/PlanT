@@ -70,6 +70,7 @@ export async function PATCH(
       include: {
         spots: { include: { member: true }, orderBy: { sortOrder: "asc" } },
         members: true,
+        tasks: { orderBy: { sortOrder: "asc" } },
       },
     });
 

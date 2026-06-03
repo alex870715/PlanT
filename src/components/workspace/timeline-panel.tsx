@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Loader2, Plus, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -32,10 +32,30 @@ export function TimelinePanel({
   );
   const [editingSpot, setEditingSpot] = useState<SpotDto | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduleMsg, setScheduleMsg] = useState<string | null>(null);
 
   async function refreshTrip() {
     const res = await fetch(`/api/trip/${trip.seedCode}`);
     if (res.ok) onTripUpdate(await res.json());
+  }
+
+  async function autoSchedule() {
+    setScheduling(true);
+    setScheduleMsg(null);
+    try {
+      const res = await fetch(`/api/trip/${trip.seedCode}/auto-schedule`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "排程失敗");
+      onTripUpdate(data.trip);
+      setScheduleMsg(data.message ?? "已重新排程");
+    } catch (e) {
+      setScheduleMsg(e instanceof Error ? e.message : "排程失敗");
+    } finally {
+      setScheduling(false);
+    }
   }
 
   async function handleGraft(spotId: string) {
@@ -87,10 +107,31 @@ export function TimelinePanel({
     <>
       <div className="flex h-full min-h-[400px] flex-col rounded-xl border border-emerald-200 bg-white/90 shadow-sm">
         <div className="border-b border-emerald-100 px-4 py-3">
-          <h2 className="font-semibold text-emerald-950">{trip.title}</h2>
-          <p className="font-mono text-xs text-emerald-600">
-            Seed: {trip.seedCode} · 拖曳調整順序
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h2 className="font-semibold text-emerald-950">{trip.title}</h2>
+              <p className="font-mono text-xs text-emerald-600">
+                Seed: {trip.seedCode} · 拖曳調整順序
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 border-violet-200 text-violet-800 hover:bg-violet-50"
+              onClick={() => void autoSchedule()}
+              disabled={scheduling}
+            >
+              {scheduling ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              一鍵排程
+            </Button>
+          </div>
+          {scheduleMsg && (
+            <p className="mt-2 text-xs text-violet-700">{scheduleMsg}</p>
+          )}
         </div>
 
         <Tabs defaultValue="trunk" className="flex flex-1 flex-col px-4 pb-4">

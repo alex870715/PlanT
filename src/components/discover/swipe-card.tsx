@@ -38,10 +38,17 @@ export function SwipeCard({ card, style, className }: SwipeCardProps) {
               </span>
             )}
           </span>
-          <span className="flex items-center gap-1 rounded-full bg-black/20 px-2 py-1 text-xs font-bold">
-            <Flame className="h-3 w-3" />
-            {card.popularity}
-          </span>
+          <div className="flex flex-col items-end gap-1">
+            {card.groupLabel ? (
+              <span className="rounded-full bg-rose-500/90 px-2 py-1 text-[10px] font-bold backdrop-blur">
+                {card.groupLabel}
+              </span>
+            ) : null}
+            <span className="flex items-center gap-1 rounded-full bg-black/20 px-2 py-1 text-xs font-bold">
+              <Flame className="h-3 w-3" />
+              {card.popularity}
+            </span>
+          </div>
         </div>
         <h2 className="mt-4 text-2xl font-bold leading-tight">{card.name}</h2>
         {card.area && (

@@ -18,6 +18,53 @@ model Trip {
 
   spots   Spot[]
   members Member[]
+  tasks   TripTask[]
+}
+
+model MatchRoom {
+  id               String   @id @default(cuid())
+  roomCode         String   @unique @db.Char(6)
+  destinationSlug  String
+  destinationLabel String
+  startDate        DateTime
+  endDate          DateTime
+  hostName         String   @default("探索隊長")
+  votingEndsAt     DateTime?
+  plantedSeedCode  String?  @db.Char(6)
+  createdAt        DateTime @default(now())
+
+  votes MatchVote[]
+}
+
+model MatchVote {
+  id        String   @id @default(cuid())
+  roomId    String
+  cardId    String
+  voterName String
+  vote      String   @db.Char(4)
+  createdAt DateTime @default(now())
+
+  room MatchRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, cardId, voterName])
+  @@index([roomId])
+}
+
+model TripTask {
+  id        String   @id @default(cuid())
+  tripId    String
+  title     String
+  category  String   @default("booking")
+  assignee  String?
+  amount    Float?
+  notes     String?
+  done      Boolean  @default(false)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
 }
 
 model Spot {

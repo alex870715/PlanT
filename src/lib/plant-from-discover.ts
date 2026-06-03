@@ -1,0 +1,111 @@
+import { prisma } from "@/lib/prisma";
+import { generateUniqueSeedCode } from "@/lib/seed-code";
+import { buildGeoSchedule } from "@/lib/trip-schedule";
+import { DEFAULT_TRIP_TASKS } from "@/lib/trip-tasks";
+import { serializeTrip } from "@/lib/trip-serializer";
+import type { DiscoverCard } from "@/types/discover";
+
+export async function plantTripFromLikedCards(options: {
+  destLabel: string;
+  title?: string;
+  memberName?: string;
+  startDate: Date;
+  endDate: Date;
+  tripStartMidnight: Date;
+  tripEndMidnight: Date;
+  liked: DiscoverCard[];
+}) {
+  const {
+    destLabel,
+    title,
+    memberName,
+    startDate,
+    endDate,
+    tripStartMidnight,
+    liked,
+  } = options;
+
+  const seedCode = await generateUniqueSeedCode();
+  const tripTitle =
+    title?.trim() || `${destLabel} 探索之旅 🌿`;
+
+  const trip = await prisma.trip.create({
+    data: {
+      seedCode,
+      title: tripTitle,
+      startDate,
+      endDate,
+      members: {
+        create: { name: memberName?.trim() || "探索隊長" },
+      },
+      tasks: {
+        create: DEFAULT_TRIP_TASKS.map((t) => ({
+          title: t.title,
+          category: t.category,
+          sortOrder: t.sortOrder,
+        })),
+      },
+    },
+  });
+
+  const createdSpots = [];
+  for (let i = 0; i < liked.length; i++) {
+    const card = liked[i];
+    const spot = await prisma.spot.create({
+      data: {
+        tripId: trip.id,
+        name: card.name,
+        latitude: card.latitude,
+        longitude: card.longitude,
+        notes: `${card.category === "food" ? "🍽️" : "📍"} ${card.description} · 聲量 ${card.popularity}`,
+        openHours: card.category === "food" ? "建議預約或離峰" : undefined,
+        isTrunk: true,
+        sortOrder: i,
+      },
+    });
+    createdSpots.push(spot);
+  }
+
+  if (createdSpots.length > 0) {
+    const scheduleUpdates = buildGeoSchedule(
+      createdSpots.map((s) => ({
+        id: s.id,
+        name: s.name,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        openHours: s.openHours,
+        phone: s.phone,
+        notes: s.notes,
+        scheduledAt: null,
+        isTrunk: true,
+        sortOrder: s.sortOrder,
+        memberId: null,
+      })),
+      tripStartMidnight.toISOString(),
+      options.tripEndMidnight.toISOString()
+    );
+
+    await prisma.$transaction(
+      scheduleUpdates.map((u) =>
+        prisma.spot.update({
+          where: { id: u.id },
+          data: {
+            scheduledAt: new Date(u.scheduledAt),
+            sortOrder: u.sortOrder,
+          },
+        })
+      )
+    );
+  }
+
+  const full = await prisma.trip.findUnique({
+    where: { id: trip.id },
+    include: {
+      spots: { include: { member: true }, orderBy: { sortOrder: "asc" } },
+      members: true,
+      tasks: { orderBy: { sortOrder: "asc" } },
+    },
+  });
+
+  return { seedCode, trip: serializeTrip(full!) };
+}

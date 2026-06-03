@@ -19,6 +19,17 @@ export type MemberDto = {
   email: string | null;
 };
 
+export type TripTaskDto = {
+  id: string;
+  title: string;
+  category: string;
+  assignee: string | null;
+  amount: number | null;
+  notes: string | null;
+  done: boolean;
+  sortOrder: number;
+};
+
 export type TripDto = {
   id: string;
   seedCode: string;
@@ -27,6 +38,7 @@ export type TripDto = {
   endDate: string;
   spots: SpotDto[];
   members: MemberDto[];
+  tasks: TripTaskDto[];
 };
 
 export type CreateTripBody = {

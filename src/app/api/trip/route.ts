@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { generateUniqueSeedCode } from "@/lib/seed-code";
+import { DEFAULT_TRIP_TASKS } from "@/lib/trip-tasks";
 import { serializeTrip } from "@/lib/trip-serializer";
 import type { CreateTripBody } from "@/types/trip";
 
@@ -38,10 +39,18 @@ export async function POST(request: NextRequest) {
         members: {
           create: { name: memberName },
         },
+        tasks: {
+          create: DEFAULT_TRIP_TASKS.map((t) => ({
+            title: t.title,
+            category: t.category,
+            sortOrder: t.sortOrder,
+          })),
+        },
       },
       include: {
         spots: { include: { member: true }, orderBy: { sortOrder: "asc" } },
         members: true,
+        tasks: { orderBy: { sortOrder: "asc" } },
       },
     });
 

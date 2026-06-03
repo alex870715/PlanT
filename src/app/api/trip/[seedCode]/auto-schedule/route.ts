@@ -1,0 +1,74 @@
+import { NextRequest, NextResponse } from "next/server";
+import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
+import { prisma } from "@/lib/prisma";
+import { buildGeoSchedule } from "@/lib/trip-schedule";
+import { serializeSpot } from "@/lib/spot-serializer";
+import { serializeTrip } from "@/lib/trip-serializer";
+import { partitionSpots } from "@/lib/spots";
+
+type RouteContext = { params: Promise<{ seedCode: string }> };
+
+export async function POST(_request: NextRequest, context: RouteContext) {
+  try {
+    const { seedCode: raw } = await context.params;
+    const seedCode = normalizeSeedCode(raw);
+
+    if (!isValidSeedCode(seedCode)) {
+      return jsonError("Invalid seed code format", 400);
+    }
+
+    const trip = await prisma.trip.findUnique({
+      where: { seedCode },
+      include: {
+        spots: { include: { member: true }, orderBy: { sortOrder: "asc" } },
+        members: true,
+        tasks: { orderBy: { sortOrder: "asc" } },
+      },
+    });
+
+    if (!trip) return jsonError("Trip not found", 404);
+
+    const { trunk } = partitionSpots(
+      trip.spots.map((s) => serializeSpot(s))
+    );
+
+    if (trunk.length === 0) {
+      return jsonError("主幹尚無景點可排程", 400);
+    }
+
+    const updates = buildGeoSchedule(
+      trunk,
+      trip.startDate.toISOString(),
+      trip.endDate.toISOString()
+    );
+
+    await prisma.$transaction(
+      updates.map((u) =>
+        prisma.spot.update({
+          where: { id: u.id },
+          data: {
+            scheduledAt: new Date(u.scheduledAt),
+            sortOrder: u.sortOrder,
+          },
+        })
+      )
+    );
+
+    const updated = await prisma.trip.findUnique({
+      where: { seedCode },
+      include: {
+        spots: { include: { member: true }, orderBy: { sortOrder: "asc" } },
+        members: true,
+        tasks: { orderBy: { sortOrder: "asc" } },
+      },
+    });
+
+    return NextResponse.json({
+      trip: serializeTrip(updated!),
+      message: `已依 ${updates.length} 個主幹景點、出遊天數與地理位置重新排程`,
+    });
+  } catch (error) {
+    console.error("POST /api/trip/[seedCode]/auto-schedule", error);
+    return jsonError("Failed to auto-schedule", 500);
+  }
+}

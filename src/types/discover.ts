@@ -11,6 +11,9 @@ export type DiscoverCard = {
   longitude: number;
   tags: string[];
   area?: string;
+  /** 揪團房：即時票數（選填） */
+  groupLikes?: number;
+  groupLabel?: string;
 };
 
 export type DiscoverDestination = {

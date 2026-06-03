@@ -9,6 +9,7 @@ import { StorybookModal } from "@/components/workspace/storybook-modal";
 import { MembersPanel } from "@/components/workspace/members-panel";
 import { SpotDiscoverDialog } from "@/components/workspace/spot-discover-dialog";
 import { TimelinePanel } from "@/components/workspace/timeline-panel";
+import { TripTasksPanel } from "@/components/workspace/trip-tasks-panel";
 import type { SpotDto, TripDto } from "@/types/trip";
 
 type PlantWorkspaceProps = {
@@ -87,9 +88,11 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
         </div>
       </header>
 
-      <div className="grid flex-1 gap-4 p-4 lg:grid-cols-2 lg:items-start lg:p-6">
-        <div className="flex min-w-0 flex-col gap-4">
+      <div className="grid flex-1 gap-4 p-3 sm:p-4 lg:grid-cols-2 lg:items-start lg:p-6">
+        {/* 手機：地圖在上、單手先看路線；桌面：左時間軸右地圖 */}
+        <div className="order-2 flex min-w-0 flex-col gap-4 lg:order-1">
           <MembersPanel trip={trip} onTripUpdate={setTrip} />
+          <TripTasksPanel trip={trip} onTripUpdate={setTrip} />
           <TimelinePanel
             trip={trip}
             onTripUpdate={setTrip}
@@ -101,8 +104,8 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
           />
         </div>
         {/* 右欄：正方形地圖，不跟左側時間軸等高拉伸 */}
-        <div className="w-full lg:sticky lg:top-4 lg:self-start">
-          <div className="mx-auto aspect-square w-full max-w-[min(100%,520px)] lg:max-w-none">
+        <div className="order-1 w-full lg:order-2 lg:sticky lg:top-4 lg:self-start">
+          <div className="mx-auto aspect-square w-full max-w-[min(100vw-1.5rem,520px)] touch-pan-y lg:max-w-none">
             <TripMap
               spots={trip.spots}
               tripTitle={trip.title}
