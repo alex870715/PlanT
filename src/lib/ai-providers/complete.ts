@@ -14,6 +14,13 @@ const GEMINI_MODELS = [
   "gemini-1.5-flash-8b",
 ];
 
+/** Anthropic retires dated models; Haiku 3.x removed 2026-02. */
+const CLAUDE_MODELS = [
+  "claude-haiku-4-5-20251001",
+  "claude-haiku-4-5",
+  "claude-sonnet-4-6",
+];
+
 export async function aiComplete(
   credentials: AiCredentials,
   options: AiCompleteOptions
@@ -115,15 +122,9 @@ async function completeAnthropic(
     ? `${options.system}\n\nRespond with valid JSON only, no markdown fences.`
     : options.system;
 
-  const models = [
-    "claude-3-5-haiku-20241022",
-    "claude-3-5-haiku-latest",
-    "claude-3-haiku-20240307",
-  ];
-
   let lastError = "";
 
-  for (const model of models) {
+  for (const model of CLAUDE_MODELS) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -141,8 +142,13 @@ async function completeAnthropic(
     });
 
     if (!res.ok) {
-      lastError = (await res.text()).slice(0, 300);
-      if (res.status === 404) continue;
+      const errText = await res.text();
+      lastError = errText.slice(0, 300);
+      const modelUnavailable =
+        res.status === 404 ||
+        errText.includes("not_found_error") ||
+        errText.includes('"type":"not_found"');
+      if (modelUnavailable) continue;
       throw new Error(`Claude API 錯誤：${lastError}`);
     }
 
@@ -155,5 +161,7 @@ async function completeAnthropic(
     lastError = "Claude 未回傳內容";
   }
 
-  throw new Error(`Claude API 錯誤：${lastError.slice(0, 200)}`);
+  throw new Error(
+    `Claude API 錯誤：目前可用的模型皆無法使用。請確認 Anthropic 金鑰與帳戶權限。(${lastError.slice(0, 120)})`
+  );
 }
