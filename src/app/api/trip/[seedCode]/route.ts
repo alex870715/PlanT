@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
-import { tripDetailInclude } from "@/lib/trip-include";
+import { findTripBySeedCode } from "@/lib/load-trip";
 import { serializeTrip } from "@/lib/trip-serializer";
 
 type RouteContext = { params: Promise<{ seedCode: string }> };
@@ -18,10 +17,7 @@ export async function GET(
       return jsonError("Invalid seed code format", 400);
     }
 
-    const trip = await prisma.trip.findUnique({
-      where: { seedCode },
-      include: tripDetailInclude,
-    });
+    const trip = await findTripBySeedCode(seedCode);
 
     if (!trip) {
       return jsonError("Trip not found", 404);

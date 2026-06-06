@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
+import { findTripBySeedCode } from "@/lib/load-trip";
 import { prisma } from "@/lib/prisma";
-import { tripDetailInclude } from "@/lib/trip-include";
 import { serializeTrip } from "@/lib/trip-serializer";
 
 type RouteContext = { params: Promise<{ seedCode: string }> };
@@ -66,12 +66,10 @@ export async function PATCH(
       })
     );
 
-    const updated = await prisma.trip.findUnique({
-      where: { seedCode },
-      include: tripDetailInclude,
-    });
+    const updated = await findTripBySeedCode(seedCode);
+    if (!updated) return jsonError("Trip not found", 404);
 
-    return NextResponse.json(serializeTrip(updated!));
+    return NextResponse.json(serializeTrip(updated));
   } catch (error) {
     console.error("PATCH /api/trip/[seedCode]/reorder", error);
     return jsonError("Failed to reorder spots", 500);

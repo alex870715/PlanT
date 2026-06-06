@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
-import { prisma } from "@/lib/prisma";
+import { createTripWithDefaults } from "@/lib/load-trip";
 import { generateUniqueSeedCode } from "@/lib/seed-code";
-import { DEFAULT_TRIP_TASKS } from "@/lib/trip-tasks";
-import { tripDetailInclude } from "@/lib/trip-include";
 import { serializeTrip } from "@/lib/trip-serializer";
 import type { CreateTripBody } from "@/types/trip";
 
@@ -31,24 +29,12 @@ export async function POST(request: NextRequest) {
     const seedCode = await generateUniqueSeedCode();
     const memberName = body.memberName?.trim() || "Explorer";
 
-    const trip = await prisma.trip.create({
-      data: {
-        seedCode,
-        title: body.title.trim(),
-        startDate,
-        endDate,
-        members: {
-          create: { name: memberName },
-        },
-        tasks: {
-          create: DEFAULT_TRIP_TASKS.map((t) => ({
-            title: t.title,
-            category: t.category,
-            sortOrder: t.sortOrder,
-          })),
-        },
-      },
-      include: tripDetailInclude,
+    const trip = await createTripWithDefaults({
+      seedCode,
+      title: body.title.trim(),
+      startDate,
+      endDate,
+      memberName,
     });
 
     return NextResponse.json(serializeTrip(trip), { status: 201 });

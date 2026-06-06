@@ -1,8 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { generateUniqueSeedCode } from "@/lib/seed-code";
 import { buildGeoSchedule } from "@/lib/trip-schedule";
+import { findTripById } from "@/lib/load-trip";
+import { isPrismaSchemaMismatch } from "@/lib/prisma-compat";
 import { DEFAULT_TRIP_TASKS } from "@/lib/trip-tasks";
-import { tripCoreInclude, tripDetailInclude } from "@/lib/trip-include";
 import { serializeTrip } from "@/lib/trip-serializer";
 import type { DiscoverCard } from "@/types/discover";
 
@@ -27,27 +28,36 @@ export async function plantTripFromLikedCards(options: {
   } = options;
 
   const seedCode = await generateUniqueSeedCode();
-  const tripTitle =
-    title?.trim() || `${destLabel} 探索之旅 🌿`;
+  const tripTitle = title?.trim() || `${destLabel} 探索之旅 🌿`;
 
-  const trip = await prisma.trip.create({
-    data: {
-      seedCode,
-      title: tripTitle,
-      startDate,
-      endDate,
-      members: {
-        create: { name: memberName?.trim() || "探索隊長" },
-      },
-      tasks: {
-        create: DEFAULT_TRIP_TASKS.map((t) => ({
-          title: t.title,
-          category: t.category,
-          sortOrder: t.sortOrder,
-        })),
-      },
+  const base = {
+    seedCode,
+    title: tripTitle,
+    startDate,
+    endDate,
+    members: {
+      create: { name: memberName?.trim() || "探索隊長" },
     },
-  });
+  };
+
+  let trip: { id: string };
+  try {
+    trip = await prisma.trip.create({
+      data: {
+        ...base,
+        tasks: {
+          create: DEFAULT_TRIP_TASKS.map((t) => ({
+            title: t.title,
+            category: t.category,
+            sortOrder: t.sortOrder,
+          })),
+        },
+      },
+    });
+  } catch (error) {
+    if (!isPrismaSchemaMismatch(error)) throw error;
+    trip = await prisma.trip.create({ data: base });
+  }
 
   const createdSpots = [];
   for (let i = 0; i < liked.length; i++) {
@@ -101,31 +111,8 @@ export async function plantTripFromLikedCards(options: {
     );
   }
 
-  const full = await loadTripForSerialize(trip.id);
+  const full = await findTripById(trip.id);
+  if (!full) throw new Error("Trip not found after create");
 
   return { seedCode, trip: serializeTrip(full) };
-}
-
-async function loadTripForSerialize(tripId: string) {
-  try {
-    const full = await prisma.trip.findUnique({
-      where: { id: tripId },
-      include: tripDetailInclude,
-    });
-    if (!full) throw new Error("Trip not found after create");
-    return full;
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message.includes("Unknown field `expenses`")
-    ) {
-      const full = await prisma.trip.findUnique({
-        where: { id: tripId },
-        include: tripCoreInclude,
-      });
-      if (!full) throw new Error("Trip not found after create");
-      return full;
-    }
-    throw error;
-  }
 }

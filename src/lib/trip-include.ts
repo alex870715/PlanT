@@ -1,7 +1,12 @@
-/** 不含記帳，相容舊版 Prisma Client */
-export const tripCoreInclude = {
+/** 僅主幹／成員，相容尚未 db:push 的舊資料庫 */
+export const tripMinimalInclude = {
   spots: { include: { member: true }, orderBy: { sortOrder: "asc" as const } },
   members: true,
+};
+
+/** 不含記帳，相容舊版 Prisma Client */
+export const tripCoreInclude = {
+  ...tripMinimalInclude,
   tasks: { orderBy: { sortOrder: "asc" as const } },
 };
 
@@ -13,3 +18,9 @@ export const tripDetailInclude = {
     orderBy: { createdAt: "desc" as const },
   },
 };
+
+export const tripIncludeFallbacks = [
+  tripDetailInclude,
+  tripCoreInclude,
+  tripMinimalInclude,
+] as const;

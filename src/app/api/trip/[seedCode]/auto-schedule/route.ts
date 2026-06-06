@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
+import { findTripBySeedCode } from "@/lib/load-trip";
 import { prisma } from "@/lib/prisma";
 import { buildGeoSchedule } from "@/lib/trip-schedule";
 import { serializeSpot } from "@/lib/spot-serializer";
-import { tripDetailInclude } from "@/lib/trip-include";
 import { serializeTrip } from "@/lib/trip-serializer";
 import { partitionSpots } from "@/lib/spots";
 
@@ -18,10 +18,7 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       return jsonError("Invalid seed code format", 400);
     }
 
-    const trip = await prisma.trip.findUnique({
-      where: { seedCode },
-      include: tripDetailInclude,
-    });
+    const trip = await findTripBySeedCode(seedCode);
 
     if (!trip) return jsonError("Trip not found", 404);
 
@@ -51,13 +48,11 @@ export async function POST(_request: NextRequest, context: RouteContext) {
       )
     );
 
-    const updated = await prisma.trip.findUnique({
-      where: { seedCode },
-      include: tripDetailInclude,
-    });
+    const updated = await findTripBySeedCode(seedCode);
+    if (!updated) return jsonError("Trip not found", 404);
 
     return NextResponse.json({
-      trip: serializeTrip(updated!),
+      trip: serializeTrip(updated),
       message: `已依 ${updates.length} 個主幹景點、出遊天數與地理位置重新排程`,
     });
   } catch (error) {
