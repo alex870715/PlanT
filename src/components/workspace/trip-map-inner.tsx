@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import L from "leaflet";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPin, Pencil, Sparkles } from "lucide-react";
 import {
   MapContainer,
   Marker,
@@ -10,10 +10,12 @@ import {
   Popup,
   TileLayer,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { formatScheduledAt } from "@/lib/datetime";
+import { formatTravelLeg } from "@/lib/travel";
 import {
   buildMapDayFilters,
   flattenGroups,
@@ -30,10 +32,34 @@ type TripMapInnerProps = {
   tripTitle: string;
   tripStartDate: string;
   tripEndDate: string;
-  onSpotSelect?: (spot: SpotDto) => void;
+  onSpotExplore?: (spot: SpotDto) => void;
+  onSpotEdit?: (spot: SpotDto) => void;
+  onSpotMove?: (spot: SpotDto) => void;
+  onMoveModeDone?: () => void;
+  moveSpotId?: string | null;
   selectedDayId?: string;
   onDayChange?: (dayId: string) => void;
+  draggableSpotId?: string | null;
+  mapPickActive?: boolean;
+  onMapPick?: (lat: number, lng: number) => void;
+  onMapPickCancel?: () => void;
+  onSpotLocationChange?: (spotId: string, lat: number, lng: number) => void;
 };
+
+function MapClickPick({
+  active,
+  onPick,
+}: {
+  active: boolean;
+  onPick: (lat: number, lng: number) => void;
+}) {
+  useMapEvents({
+    click(e) {
+      if (active) onPick(e.latlng.lat, e.latlng.lng);
+    },
+  });
+  return null;
+}
 
 /** 切換 Day 時同步地圖視角（setView / fitBounds） */
 function MapViewSync({
@@ -113,12 +139,16 @@ function SpotPopup({
   variant,
   dayLabel,
   onExplore,
+  onEdit,
+  onMove,
 }: {
   orderLabel: string;
   spot: SpotDto;
   variant: "trunk" | "sprout";
   dayLabel?: string;
   onExplore?: () => void;
+  onEdit?: () => void;
+  onMove?: () => void;
 }) {
   return (
     <div className="min-w-[180px] font-sans text-sm">
@@ -148,16 +178,44 @@ function SpotPopup({
           🕐 {spot.openHours}
         </p>
       )}
-      {spot.notes && <p className="mt-1 text-xs text-gray-500">{spot.notes}</p>}
-      {onExplore && (
-        <button
-          type="button"
-          onClick={onExplore}
-          className="mt-2 w-full rounded-md bg-emerald-600 px-2 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
-        >
-          探索美食與照片 →
-        </button>
+      {formatTravelLeg(spot.travelMode, spot.travelMinutes) && (
+        <p className="mt-1 rounded bg-sky-50 px-2 py-1 text-xs text-sky-900">
+          {formatTravelLeg(spot.travelMode, spot.travelMinutes)}
+        </p>
       )}
+      {spot.notes && <p className="mt-1 text-xs text-gray-500">{spot.notes}</p>}
+      <div className="mt-2 flex flex-col gap-1.5">
+        {onEdit && (
+          <button
+            type="button"
+            onClick={onEdit}
+            className="flex w-full items-center justify-center gap-1 rounded-md border border-emerald-200 bg-white px-2 py-1.5 text-xs font-medium text-emerald-800 hover:bg-emerald-50"
+          >
+            <Pencil className="h-3 w-3" />
+            編輯景點
+          </button>
+        )}
+        {onMove && (
+          <button
+            type="button"
+            onClick={onMove}
+            className="flex w-full items-center justify-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-1.5 text-xs font-medium text-sky-900 hover:bg-sky-100"
+          >
+            <MapPin className="h-3 w-3" />
+            移動座標
+          </button>
+        )}
+        {onExplore && (
+          <button
+            type="button"
+            onClick={onExplore}
+            className="flex w-full items-center justify-center gap-1 rounded-md bg-emerald-600 px-2 py-1.5 text-xs font-medium text-white hover:bg-emerald-700"
+          >
+            <Sparkles className="h-3 w-3" />
+            探索美食與照片
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -169,9 +227,18 @@ export function TripMapInner({
   tripTitle,
   tripStartDate,
   tripEndDate,
-  onSpotSelect,
+  onSpotExplore,
+  onSpotEdit,
+  onSpotMove,
+  onMoveModeDone,
+  moveSpotId,
   selectedDayId: controlledDayId,
   onDayChange,
+  draggableSpotId,
+  mapPickActive,
+  onMapPick,
+  onMapPickCancel,
+  onSpotLocationChange,
 }: TripMapInnerProps) {
   const dayFilters = useMemo(
     () => buildMapDayFilters(spots, tripStartDate, tripEndDate),
@@ -318,6 +385,12 @@ export function TripMapInner({
             zoom={mapFocus.zoom}
             bbox={mapFocus.bbox}
           />
+          {onMapPick && (
+            <MapClickPick
+              active={!!mapPickActive}
+              onPick={onMapPick}
+            />
+          )}
 
           {trunkRoute.length >= 2 && (
             <Polyline
@@ -341,7 +414,14 @@ export function TripMapInner({
                 position={[spot.latitude, spot.longitude]}
                 icon={createNumberedIcon(order, "trunk")}
                 zIndexOffset={1000 + index}
-                eventHandlers={{ click: () => onSpotSelect?.(spot) }}
+                draggable={draggableSpotId === spot.id}
+                eventHandlers={{
+                  dragend: (e) => {
+                    if (draggableSpotId !== spot.id) return;
+                    const { lat, lng } = e.target.getLatLng();
+                    onSpotLocationChange?.(spot.id, lat, lng);
+                  },
+                }}
               >
                 <Popup>
                   <SpotPopup
@@ -351,7 +431,9 @@ export function TripMapInner({
                     spot={spot}
                     variant="trunk"
                     dayLabel={isAllView ? undefined : activeFilter.label}
-                    onExplore={() => onSpotSelect?.(spot)}
+                    onExplore={() => onSpotExplore?.(spot)}
+                    onEdit={() => onSpotEdit?.(spot)}
+                    onMove={() => onSpotMove?.(spot)}
                   />
                 </Popup>
               </Marker>
@@ -368,7 +450,14 @@ export function TripMapInner({
                 position={[spot.latitude, spot.longitude]}
                 icon={createNumberedIcon(label, "sprout")}
                 zIndexOffset={500 + index}
-                eventHandlers={{ click: () => onSpotSelect?.(spot) }}
+                draggable={draggableSpotId === spot.id}
+                eventHandlers={{
+                  dragend: (e) => {
+                    if (draggableSpotId !== spot.id) return;
+                    const { lat, lng } = e.target.getLatLng();
+                    onSpotLocationChange?.(spot.id, lat, lng);
+                  },
+                }}
               >
                 <Popup>
                   <SpotPopup
@@ -378,7 +467,9 @@ export function TripMapInner({
                     spot={spot}
                     variant="sprout"
                     dayLabel={isAllView ? undefined : activeFilter.label}
-                    onExplore={() => onSpotSelect?.(spot)}
+                    onExplore={() => onSpotExplore?.(spot)}
+                    onEdit={() => onSpotEdit?.(spot)}
+                    onMove={() => onSpotMove?.(spot)}
                   />
                 </Popup>
               </Marker>
@@ -398,7 +489,39 @@ export function TripMapInner({
           </p>
         </div>
 
-        {visibleAll.length === 0 && (
+        {mapPickActive && (
+          <div className="absolute inset-x-0 top-14 z-[1000] flex justify-center px-3">
+            <div className="flex items-center gap-2 rounded-full bg-sky-600 px-3 py-1 text-xs font-medium text-white shadow">
+              <span>點擊地圖設定景點位置</span>
+              {onMapPickCancel && (
+                <button
+                  type="button"
+                  className="rounded-full bg-white/20 px-2 py-0.5 hover:bg-white/30"
+                  onClick={() => onMapPickCancel()}
+                >
+                  取消
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {moveSpotId && !mapPickActive && (
+          <div className="absolute inset-x-0 top-14 z-[1000] flex justify-center px-3">
+            <div className="flex items-center gap-2 rounded-full bg-sky-600 px-3 py-1 text-xs font-medium text-white shadow">
+              <span>拖曳標記調整位置</span>
+              <button
+                type="button"
+                className="rounded-full bg-white/20 px-2 py-0.5 hover:bg-white/30"
+                onClick={() => onMoveModeDone?.()}
+              >
+                完成
+              </button>
+            </div>
+          </div>
+        )}
+
+        {visibleAll.length === 0 && !mapPickActive && (
           <div className="pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center bg-white/70">
             <p className="text-sm text-emerald-800">
               此日尚無景點，請從左側拖曳或新增

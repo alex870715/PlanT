@@ -114,7 +114,12 @@ export function DiscoverFlow() {
 
   const isGroup = flowMode === "create" || flowMode === "join";
   const current = deck[index];
-  const progress = deck.length ? index / deck.length : 0;
+  const totalCards = deck.length;
+  const decidedCount = liked.length + passed.length;
+  const currentCardNumber = current
+    ? Math.min(decidedCount + 1, totalCards)
+    : Math.min(decidedCount, totalCards);
+  const progress = totalCards ? currentCardNumber / totalCards : 0;
   const phase = roomMeta?.phase;
   const votingOpen = roomMeta?.votingOpen ?? false;
   const canPlantGroup =
@@ -761,7 +766,7 @@ export function DiscoverFlow() {
                   {meta?.emoji} {meta?.label}
                 </span>
                 <span>
-                  {index + 1} / {deck.length}
+                  {currentCardNumber} / {totalCards}
                 </span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-emerald-100">

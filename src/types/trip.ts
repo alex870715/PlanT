@@ -7,6 +7,8 @@ export type SpotDto = {
   phone: string | null;
   notes: string | null;
   scheduledAt: string | null;
+  travelMode: string | null;
+  travelMinutes: number | null;
   isTrunk: boolean;
   sortOrder: number;
   memberId: string | null;
@@ -30,6 +32,17 @@ export type TripTaskDto = {
   sortOrder: number;
 };
 
+export type TripExpenseDto = {
+  id: string;
+  title: string;
+  amount: number;
+  paidByMemberId: string;
+  paidByName: string | null;
+  splitMemberIds: string[];
+  notes: string | null;
+  createdAt: string;
+};
+
 export type TripDto = {
   id: string;
   seedCode: string;
@@ -39,6 +52,7 @@ export type TripDto = {
   spots: SpotDto[];
   members: MemberDto[];
   tasks: TripTaskDto[];
+  expenses: TripExpenseDto[];
 };
 
 export type CreateTripBody = {
@@ -63,10 +77,14 @@ export type CreateSpotBody = {
 
 export type UpdateSpotBody = {
   name?: string;
+  latitude?: number;
+  longitude?: number;
   openHours?: string | null;
   phone?: string | null;
   notes?: string | null;
   scheduledAt?: string | null;
+  travelMode?: string | null;
+  travelMinutes?: number | null;
   sortOrder?: number;
 };
 

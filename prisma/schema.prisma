@@ -16,9 +16,10 @@ model Trip {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  spots   Spot[]
-  members Member[]
-  tasks   TripTask[]
+  spots    Spot[]
+  members  Member[]
+  tasks    TripTask[]
+  expenses TripExpense[]
 }
 
 model MatchRoom {
@@ -67,6 +68,24 @@ model TripTask {
   @@index([tripId])
 }
 
+model TripExpense {
+  id               String   @id @default(cuid())
+  tripId           String
+  title            String
+  amount           Float
+  paidByMemberId   String
+  /** JSON string[] of member ids who share this expense */
+  splitMemberIds   Json
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  paidBy Member @relation(fields: [paidByMemberId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([paidByMemberId])
+}
+
 model Spot {
   id        String   @id @default(cuid())
   tripId    String
@@ -78,6 +97,9 @@ model Spot {
   phone     String?
   notes        String?
   scheduledAt  DateTime?
+  /** 從上一站到此站的交通方式：walk / transit / drive / taxi / bike */
+  travelMode    String?
+  travelMinutes Int?
   isTrunk      Boolean   @default(true)
   sortOrder    Int       @default(0)
   createdAt DateTime @default(now())
@@ -97,8 +119,9 @@ model Member {
   email     String?
   createdAt DateTime @default(now())
 
-  trip  Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  spots Spot[]
+  trip         Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  spots        Spot[]
+  paidExpenses TripExpense[]
 
   @@index([tripId])
 }

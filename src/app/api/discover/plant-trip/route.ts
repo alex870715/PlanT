@@ -1,8 +1,24 @@
+import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
 import { getDiscoverDeck } from "@/lib/discover/catalog";
 import { plantTripFromLikedCards } from "@/lib/plant-from-discover";
 import type { PlantTripFromDiscoverBody } from "@/types/discover";
+
+function plantTripErrorMessage(error: unknown): string {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error.code === "P2021") {
+      return "資料庫 schema 尚未更新，請執行 npm run db:push";
+    }
+  }
+  if (error instanceof Error) {
+    if (error.message.includes("Unknown field `expenses`")) {
+      return "Prisma Client 過期，請執行 npx prisma generate 後重啟 npm run dev";
+    }
+    return error.message;
+  }
+  return "Failed to plant trip from discover";
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -74,6 +90,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("POST /api/discover/plant-trip", error);
-    return jsonError("Failed to plant trip from discover", 500);
+    return jsonError(plantTripErrorMessage(error), 500);
   }
 }

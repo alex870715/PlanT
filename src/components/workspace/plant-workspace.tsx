@@ -9,6 +9,7 @@ import { StorybookModal } from "@/components/workspace/storybook-modal";
 import { MembersPanel } from "@/components/workspace/members-panel";
 import { SpotDiscoverDialog } from "@/components/workspace/spot-discover-dialog";
 import { TimelinePanel } from "@/components/workspace/timeline-panel";
+import { TripExpensePanel } from "@/components/workspace/trip-expense-panel";
 import { TripTasksPanel } from "@/components/workspace/trip-tasks-panel";
 import type { SpotDto, TripDto } from "@/types/trip";
 
@@ -23,6 +24,40 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
   const [discoverSpot, setDiscoverSpot] = useState<SpotDto | null>(null);
   const [discoverOpen, setDiscoverOpen] = useState(false);
   const [mapDayId, setMapDayId] = useState("all");
+  const [draggableSpotId, setDraggableSpotId] = useState<string | null>(null);
+  const [moveSpotId, setMoveSpotId] = useState<string | null>(null);
+  const [mapPickSpotId, setMapPickSpotId] = useState<string | null>(null);
+  const [mapPickResult, setMapPickResult] = useState<{
+    spotId: string;
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [externalEditSpotId, setExternalEditSpotId] = useState<string | null>(
+    null
+  );
+
+  async function updateSpotLocation(spotId: string, lat: number, lng: number) {
+    const res = await fetch(`/api/spot/${spotId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ latitude: lat, longitude: lng }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setTrip((prev) =>
+        prev
+          ? {
+              ...prev,
+              spots: prev.spots.map((s) =>
+                s.id === spotId
+                  ? { ...s, latitude: updated.latitude, longitude: updated.longitude }
+                  : s
+              ),
+            }
+          : prev
+      );
+    }
+  }
 
   const fetchTrip = useCallback(async () => {
     setLoading(true);
@@ -45,6 +80,26 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
     void fetchTrip();
   }, [fetchTrip]);
 
+  useEffect(() => {
+    if (!mapPickSpotId) return;
+    document
+      .getElementById("trip-map-anchor")
+      ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [mapPickSpotId]);
+
+  function openEditFromMap(spot: SpotDto) {
+    setMoveSpotId(null);
+    setExternalEditSpotId(spot.id);
+  }
+
+  function startMoveFromMap(spot: SpotDto) {
+    setDraggableSpotId(null);
+    setMoveSpotId(spot.id);
+    document
+      .getElementById("trip-map-anchor")
+      ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -63,6 +118,8 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
       </div>
     );
   }
+
+  const activeDraggableId = moveSpotId ?? draggableSpotId;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -89,10 +146,10 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
       </header>
 
       <div className="grid flex-1 gap-4 p-3 sm:p-4 lg:grid-cols-2 lg:items-start lg:p-6">
-        {/* 手機：地圖在上、單手先看路線；桌面：左時間軸右地圖 */}
         <div className="order-2 flex min-w-0 flex-col gap-4 lg:order-1">
           <MembersPanel trip={trip} onTripUpdate={setTrip} />
           <TripTasksPanel trip={trip} onTripUpdate={setTrip} />
+          <TripExpensePanel trip={trip} onTripUpdate={setTrip} />
           <TimelinePanel
             trip={trip}
             onTripUpdate={setTrip}
@@ -101,10 +158,30 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
               setDiscoverSpot(spot);
               setDiscoverOpen(true);
             }}
+            mapPickSpotId={mapPickSpotId}
+            mapPickResult={mapPickResult}
+            externalEditSpotId={externalEditSpotId}
+            onExternalEditHandled={() => setExternalEditSpotId(null)}
+            onStartMapPick={(spotId) => {
+              setMoveSpotId(null);
+              setDraggableSpotId(null);
+              setMapPickSpotId(spotId);
+              setMapPickResult(null);
+            }}
+            onCancelMapPick={() => {
+              setMapPickSpotId(null);
+              setMapPickResult(null);
+            }}
+            onEditSpotChange={(spotId) => {
+              setMoveSpotId(null);
+              setDraggableSpotId(spotId);
+            }}
           />
         </div>
-        {/* 右欄：正方形地圖，不跟左側時間軸等高拉伸 */}
-        <div className="order-1 w-full lg:order-2 lg:sticky lg:top-4 lg:self-start">
+        <div
+          id="trip-map-anchor"
+          className="order-1 w-full lg:order-2 lg:sticky lg:top-4 lg:self-start"
+        >
           <div className="mx-auto aspect-square w-full max-w-[min(100vw-1.5rem,520px)] touch-pan-y lg:max-w-none">
             <TripMap
               spots={trip.spots}
@@ -113,10 +190,28 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
               tripEndDate={trip.endDate}
               selectedDayId={mapDayId}
               onDayChange={setMapDayId}
-              onSpotSelect={(spot) => {
+              draggableSpotId={activeDraggableId}
+              moveSpotId={moveSpotId}
+              mapPickActive={!!mapPickSpotId}
+              onMapPick={(lat, lng) => {
+                if (!mapPickSpotId) return;
+                setMapPickResult({ spotId: mapPickSpotId, lat, lng });
+                setMapPickSpotId(null);
+              }}
+              onMapPickCancel={() => {
+                setMapPickSpotId(null);
+                setMapPickResult(null);
+              }}
+              onSpotLocationChange={(id, lat, lng) =>
+                void updateSpotLocation(id, lat, lng)
+              }
+              onSpotExplore={(spot) => {
                 setDiscoverSpot(spot);
                 setDiscoverOpen(true);
               }}
+              onSpotEdit={openEditFromMap}
+              onSpotMove={startMoveFromMap}
+              onMoveModeDone={() => setMoveSpotId(null)}
             />
           </div>
         </div>

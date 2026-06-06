@@ -20,9 +20,18 @@ type TripMapProps = {
   tripTitle: string;
   tripStartDate: string;
   tripEndDate: string;
-  onSpotSelect?: (spot: SpotDto) => void;
+  onSpotExplore?: (spot: SpotDto) => void;
+  onSpotEdit?: (spot: SpotDto) => void;
+  onSpotMove?: (spot: SpotDto) => void;
+  onMoveModeDone?: () => void;
+  moveSpotId?: string | null;
   selectedDayId?: string;
   onDayChange?: (dayId: string) => void;
+  draggableSpotId?: string | null;
+  mapPickActive?: boolean;
+  onMapPick?: (lat: number, lng: number) => void;
+  onMapPickCancel?: () => void;
+  onSpotLocationChange?: (spotId: string, lat: number, lng: number) => void;
 };
 
 export function TripMap({
@@ -30,9 +39,18 @@ export function TripMap({
   tripTitle,
   tripStartDate,
   tripEndDate,
-  onSpotSelect,
+  onSpotExplore,
+  onSpotEdit,
+  onSpotMove,
+  onMoveModeDone,
+  moveSpotId,
   selectedDayId,
   onDayChange,
+  draggableSpotId,
+  mapPickActive,
+  onMapPick,
+  onMapPickCancel,
+  onSpotLocationChange,
 }: TripMapProps) {
   return (
     <TripMapInner
@@ -40,9 +58,18 @@ export function TripMap({
       tripTitle={tripTitle}
       tripStartDate={tripStartDate}
       tripEndDate={tripEndDate}
-      onSpotSelect={onSpotSelect}
+      onSpotExplore={onSpotExplore}
+      onSpotEdit={onSpotEdit}
+      onSpotMove={onSpotMove}
+      onMoveModeDone={onMoveModeDone}
+      moveSpotId={moveSpotId}
       selectedDayId={selectedDayId}
       onDayChange={onDayChange}
+      draggableSpotId={draggableSpotId}
+      mapPickActive={mapPickActive}
+      onMapPick={onMapPick}
+      onMapPickCancel={onMapPickCancel}
+      onSpotLocationChange={onSpotLocationChange}
     />
   );
 }

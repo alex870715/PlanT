@@ -21,8 +21,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil } from "lucide-react";
+import { GripVertical, Loader2, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SpotAddPanel } from "@/components/workspace/spot-add-panel";
 import { cn } from "@/lib/utils";
 import { formatScheduledAt } from "@/lib/datetime";
 import {
@@ -32,7 +33,16 @@ import {
   type SpotDayGroup,
 } from "@/lib/spot-groups";
 import { partitionSpots } from "@/lib/spots";
+import { TravelLegBadge } from "@/components/workspace/travel-leg-badge";
+import type { DiscoverCard } from "@/types/discover";
 import type { SpotDto, TripDto } from "@/types/trip";
+
+type AddSpotPayload = {
+  name: string;
+  latitude: number;
+  longitude: number;
+  notes?: string;
+};
 
 type SortableDayTimelineProps = {
   trip: TripDto;
@@ -43,6 +53,16 @@ type SortableDayTimelineProps = {
   onGraft?: (spotId: string) => void;
   graftingId?: string | null;
   onTripUpdate: (trip: TripDto) => void;
+  onAddToDay?: (
+    dateKey: string,
+    payload: AddSpotPayload,
+    daySpots: SpotDto[]
+  ) => Promise<void>;
+  onAddCardToDay?: (
+    dateKey: string,
+    card: DiscoverCard,
+    daySpots: SpotDto[]
+  ) => Promise<void>;
 };
 
 export function SortableDayTimeline({
@@ -54,7 +74,12 @@ export function SortableDayTimeline({
   onGraft,
   graftingId,
   onTripUpdate,
+  onAddToDay,
+  onAddCardToDay,
 }: SortableDayTimelineProps) {
+  const [openAddDayId, setOpenAddDayId] = useState<string | null>(null);
+  const [addName, setAddName] = useState("");
+  const [addingDayId, setAddingDayId] = useState<string | null>(null);
   const branchSpots = useMemo(() => {
     const { trunk, sprouts } = partitionSpots(trip.spots);
     return isTrunk ? trunk : sprouts;
@@ -146,12 +171,32 @@ export function SortableDayTimeline({
     void persistOrder(next);
   }
 
-  if (branchSpots.length === 0) {
-    return (
-      <p className="py-8 text-center text-sm text-muted-foreground">
-        {isTrunk ? "尚無主幹景點" : "尚無個人支線"}
-      </p>
-    );
+  async function submitAddToDay(group: SpotDayGroup) {
+    if (!onAddToDay || !addName.trim()) return;
+    setAddingDayId(group.id);
+    try {
+      await onAddToDay(
+        group.dateKey,
+        { name: addName.trim(), latitude: 0, longitude: 0 },
+        group.spots
+      );
+      setAddName("");
+      setOpenAddDayId(null);
+    } finally {
+      setAddingDayId(null);
+    }
+  }
+
+  async function submitCardToDay(group: SpotDayGroup, card: DiscoverCard) {
+    if (!onAddCardToDay) return;
+    setAddingDayId(group.id);
+    try {
+      await onAddCardToDay(group.dateKey, card, group.spots);
+      setAddName("");
+      setOpenAddDayId(null);
+    } finally {
+      setAddingDayId(null);
+    }
   }
 
   return (
@@ -181,6 +226,24 @@ export function SortableDayTimeline({
             onDiscover={onDiscover}
             onGraft={onGraft}
             graftingId={graftingId}
+            canAdd={!!onAddToDay}
+            addOpen={openAddDayId === group.id}
+            addName={addName}
+            adding={addingDayId === group.id}
+            onToggleAdd={() => {
+              if (openAddDayId === group.id) {
+                setOpenAddDayId(null);
+                setAddName("");
+              } else {
+                setOpenAddDayId(group.id);
+                setAddName("");
+              }
+            }}
+            tripTitle={trip.title}
+            tripSpots={trip.spots}
+            onAddNameChange={setAddName}
+            onSubmitAdd={() => void submitAddToDay(group)}
+            onSelectSuggestion={(card) => void submitCardToDay(group, card)}
           />
         ))}
       </div>
@@ -206,6 +269,16 @@ function DroppableDayColumn({
   onDiscover,
   onGraft,
   graftingId,
+  canAdd,
+  addOpen,
+  addName,
+  adding,
+  onToggleAdd,
+  tripTitle,
+  tripSpots,
+  onAddNameChange,
+  onSubmitAdd,
+  onSelectSuggestion,
 }: {
   group: SpotDayGroup;
   isOver: boolean;
@@ -216,6 +289,16 @@ function DroppableDayColumn({
   onDiscover: (spot: SpotDto) => void;
   onGraft?: (spotId: string) => void;
   graftingId?: string | null;
+  canAdd?: boolean;
+  addOpen?: boolean;
+  addName?: string;
+  adding?: boolean;
+  onToggleAdd?: () => void;
+  tripTitle?: string;
+  tripSpots?: SpotDto[];
+  onAddNameChange?: (v: string) => void;
+  onSubmitAdd?: () => void;
+  onSelectSuggestion?: (card: DiscoverCard) => void;
 }) {
   const { setNodeRef, isOver: isOverDroppable } = useDroppable({
     id: group.id,
@@ -227,24 +310,54 @@ function DroppableDayColumn({
 
   return (
     <div>
-      <button
-        type="button"
-        onClick={() => onDaySelect?.(group.id)}
-        className={cn(
-          "sticky top-0 z-10 mb-2 w-full rounded-md bg-emerald-100/90 px-2 py-1 text-left text-xs font-bold text-emerald-900 backdrop-blur transition-colors",
-          onDaySelect && "cursor-pointer hover:bg-emerald-200/90"
-        )}
-      >
-        {group.label}
-        <span className="ml-1 font-normal text-emerald-700">
-          ({group.spots.length} 站)
-        </span>
-        {onDaySelect && group.spots.length > 0 && (
-          <span className="ml-1 text-[10px] font-normal text-emerald-600">
-            · 地圖
+      <div className="sticky top-0 z-10 mb-2 flex items-center gap-1 rounded-md bg-emerald-100/90 px-2 py-1 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => onDaySelect?.(group.id)}
+          className={cn(
+            "min-w-0 flex-1 text-left text-xs font-bold text-emerald-900 transition-colors",
+            onDaySelect && "cursor-pointer hover:text-emerald-700"
+          )}
+        >
+          {group.label}
+          <span className="ml-1 font-normal text-emerald-700">
+            ({group.spots.length} 站)
           </span>
+          {onDaySelect && group.spots.length > 0 && (
+            <span className="ml-1 text-[10px] font-normal text-emerald-600">
+              · 地圖
+            </span>
+          )}
+        </button>
+        {canAdd && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 text-emerald-700 hover:bg-emerald-200/80"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleAdd?.();
+            }}
+            aria-label={`在${group.label}新增景點`}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
         )}
-      </button>
+      </div>
+
+      {addOpen && (
+        <SpotAddPanel
+          tripTitle={tripTitle ?? ""}
+          tripSpots={tripSpots ?? []}
+          daySpots={group.spots}
+          addName={addName ?? ""}
+          adding={!!adding}
+          onAddNameChange={(v) => onAddNameChange?.(v)}
+          onSelectSuggestion={(card) => onSelectSuggestion?.(card)}
+          onSubmitCustom={() => onSubmitAdd?.()}
+        />
+      )}
 
       <div
         ref={setNodeRef}
@@ -268,17 +381,24 @@ function DroppableDayColumn({
         ) : (
           <SortableContext items={spotIds} strategy={verticalListSortingStrategy}>
             <ul className="space-y-2">
-              {group.spots.map((spot) => (
-                <SortableSpotCard
-                  key={spot.id}
-                  spot={spot}
-                  orderLabel={orderMap.get(spot.id) ?? "?"}
-                  variant={variant}
-                  onEdit={() => onEdit(spot)}
-                  onDiscover={() => onDiscover(spot)}
-                  onGraft={onGraft}
-                  graftingId={graftingId}
-                />
+              {group.spots.map((spot, spotIndex) => (
+                <li key={spot.id}>
+                  {spotIndex > 0 && (
+                    <TravelLegBadge
+                      travelMode={spot.travelMode}
+                      travelMinutes={spot.travelMinutes}
+                    />
+                  )}
+                  <SortableSpotCard
+                    spot={spot}
+                    orderLabel={orderMap.get(spot.id) ?? "?"}
+                    variant={variant}
+                    onEdit={() => onEdit(spot)}
+                    onDiscover={() => onDiscover(spot)}
+                    onGraft={onGraft}
+                    graftingId={graftingId}
+                  />
+                </li>
               ))}
             </ul>
           </SortableContext>
@@ -323,7 +443,7 @@ function SortableSpotCard({
   const timeLabel = formatScheduledAt(spot.scheduledAt);
 
   return (
-    <li
+    <div
       ref={setNodeRef}
       style={style}
       className={
@@ -400,6 +520,6 @@ function SortableSpotCard({
           Graft to Trunk 🌿
         </Button>
       )}
-    </li>
+    </div>
   );
 }

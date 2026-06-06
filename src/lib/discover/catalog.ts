@@ -47,18 +47,23 @@ export function getDestinationMeta(input: string): DiscoverDestination | null {
   return DESTINATIONS.find((d) => d.slug === slug) ?? null;
 }
 
+export function getDiscoverDeckBySlug(slug: string): {
+  destination: DiscoverDestination;
+  cards: DiscoverCard[];
+} | null {
+  const meta = DESTINATIONS.find((d) => d.slug === slug);
+  const raw = DECKS[slug];
+  if (!meta || !raw) return null;
+  const cards = withIds(raw, slug).sort((a, b) => b.popularity - a.popularity);
+  return { destination: meta, cards };
+}
+
 export function getDiscoverDeck(destinationInput: string): {
   destination: DiscoverDestination;
   cards: DiscoverCard[];
 } | null {
   const slug = normalizeDestination(destinationInput);
-  const meta = DESTINATIONS.find((d) => d.slug === slug);
-  const raw = DECKS[slug];
-
-  if (!meta || !raw) return null;
-
-  const cards = withIds(raw, slug).sort((a, b) => b.popularity - a.popularity);
-  return { destination: meta, cards };
+  return getDiscoverDeckBySlug(slug);
 }
 
 export function popularityLabel(score: number): string {

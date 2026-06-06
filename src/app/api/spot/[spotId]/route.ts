@@ -20,6 +20,18 @@ export async function PATCH(
     if (body.name !== undefined && !body.name.trim()) {
       return jsonError("name cannot be empty", 400);
     }
+    if (
+      body.latitude !== undefined &&
+      (typeof body.latitude !== "number" || !Number.isFinite(body.latitude))
+    ) {
+      return jsonError("Invalid latitude", 400);
+    }
+    if (
+      body.longitude !== undefined &&
+      (typeof body.longitude !== "number" || !Number.isFinite(body.longitude))
+    ) {
+      return jsonError("Invalid longitude", 400);
+    }
 
     let scheduledAt: Date | null | undefined = undefined;
     if (body.scheduledAt !== undefined) {
@@ -44,6 +56,17 @@ export async function PATCH(
         }),
         ...(body.notes !== undefined && {
           notes: body.notes?.trim() || null,
+        }),
+        ...(body.latitude !== undefined && { latitude: body.latitude }),
+        ...(body.longitude !== undefined && { longitude: body.longitude }),
+        ...(body.travelMode !== undefined && {
+          travelMode: body.travelMode?.trim() || null,
+        }),
+        ...(body.travelMinutes !== undefined && {
+          travelMinutes:
+            body.travelMinutes === null || body.travelMinutes === undefined
+              ? null
+              : Math.max(0, Math.round(Number(body.travelMinutes))),
         }),
         ...(scheduledAt !== undefined && { scheduledAt }),
         ...(body.sortOrder !== undefined && { sortOrder: body.sortOrder }),

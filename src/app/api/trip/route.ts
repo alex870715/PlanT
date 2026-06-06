@@ -3,6 +3,7 @@ import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { generateUniqueSeedCode } from "@/lib/seed-code";
 import { DEFAULT_TRIP_TASKS } from "@/lib/trip-tasks";
+import { tripDetailInclude } from "@/lib/trip-include";
 import { serializeTrip } from "@/lib/trip-serializer";
 import type { CreateTripBody } from "@/types/trip";
 
@@ -47,11 +48,7 @@ export async function POST(request: NextRequest) {
           })),
         },
       },
-      include: {
-        spots: { include: { member: true }, orderBy: { sortOrder: "asc" } },
-        members: true,
-        tasks: { orderBy: { sortOrder: "asc" } },
-      },
+      include: tripDetailInclude,
     });
 
     return NextResponse.json(serializeTrip(trip), { status: 201 });

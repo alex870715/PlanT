@@ -1,20 +1,40 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Plus, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { SortableDayTimeline } from "@/components/workspace/sortable-day-timeline";
 import { SpotEditDialog } from "@/components/workspace/spot-edit-dialog";
-import { fromDatetimeLocalValue } from "@/lib/datetime";
+import { defaultScheduledAtForDay } from "@/lib/spot-groups";
+import {
+  flattenGroups,
+  groupSpotsByDay,
+} from "@/lib/spot-groups";
+import { partitionSpots } from "@/lib/spots";
+import { inferTripDestination } from "@/lib/discover/spot-suggestions";
+import type { DiscoverCard } from "@/types/discover";
 import type { SpotDto, TripDto } from "@/types/trip";
+
+type AddSpotPayload = {
+  name: string;
+  latitude: number;
+  longitude: number;
+  notes?: string;
+};
 
 type TimelinePanelProps = {
   trip: TripDto;
   onTripUpdate: (trip: TripDto) => void;
   onDiscoverSpot: (spot: SpotDto) => void;
   onDaySelect?: (dayGroupId: string) => void;
+  mapPickSpotId?: string | null;
+  mapPickResult?: { spotId: string; lat: number; lng: number } | null;
+  onStartMapPick?: (spotId: string) => void;
+  onCancelMapPick?: () => void;
+  onEditSpotChange?: (spotId: string | null) => void;
+  externalEditSpotId?: string | null;
+  onExternalEditHandled?: () => void;
 };
 
 export function TimelinePanel({
@@ -22,18 +42,72 @@ export function TimelinePanel({
   onTripUpdate,
   onDiscoverSpot,
   onDaySelect,
+  mapPickSpotId,
+  mapPickResult,
+  onStartMapPick,
+  onCancelMapPick,
+  onEditSpotChange,
+  externalEditSpotId,
+  onExternalEditHandled,
 }: TimelinePanelProps) {
   const [graftingId, setGraftingId] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newTime, setNewTime] = useState("");
   const [sproutMemberId, setSproutMemberId] = useState(
     trip.members[0]?.id ?? ""
   );
   const [editingSpot, setEditingSpot] = useState<SpotDto | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [mapPickPending, setMapPickPending] = useState(false);
   const [scheduling, setScheduling] = useState(false);
   const [scheduleMsg, setScheduleMsg] = useState<string | null>(null);
+  const [editIsTrunk, setEditIsTrunk] = useState(true);
+
+  useEffect(() => {
+    if (!externalEditSpotId) return;
+    const spot = trip.spots.find((s) => s.id === externalEditSpotId);
+    if (!spot) {
+      onExternalEditHandled?.();
+      return;
+    }
+    setEditingSpot(spot);
+    setEditIsTrunk(spot.isTrunk);
+    setEditOpen(true);
+    onEditSpotChange?.(spot.id);
+    onExternalEditHandled?.();
+  }, [externalEditSpotId, trip.spots, onExternalEditHandled, onEditSpotChange]);
+
+  useEffect(() => {
+    if (!mapPickPending || !editingSpot || !mapPickResult) return;
+    if (mapPickResult.spotId === editingSpot.id) {
+      setMapPickPending(false);
+      setEditOpen(true);
+      onEditSpotChange?.(editingSpot.id);
+    }
+  }, [mapPickPending, mapPickResult, editingSpot, onEditSpotChange]);
+
+  useEffect(() => {
+    if (!mapPickPending || !editingSpot || mapPickSpotId) return;
+    if (mapPickResult?.spotId === editingSpot.id) return;
+    setMapPickPending(false);
+    setEditOpen(true);
+    onEditSpotChange?.(editingSpot.id);
+  }, [
+    mapPickPending,
+    mapPickSpotId,
+    mapPickResult,
+    editingSpot,
+    onEditSpotChange,
+  ]);
+
+  const previousEditingSpot = useMemo(() => {
+    if (!editingSpot) return null;
+    const { trunk, sprouts } = partitionSpots(trip.spots);
+    const branch = editIsTrunk ? trunk : sprouts;
+    const ordered = flattenGroups(
+      groupSpotsByDay(branch, trip.startDate, trip.endDate)
+    );
+    const idx = ordered.findIndex((s) => s.id === editingSpot.id);
+    return idx > 0 ? ordered[idx - 1] : null;
+  }, [editingSpot, editIsTrunk, trip.spots, trip.startDate, trip.endDate]);
 
   async function refreshTrip() {
     const res = await fetch(`/api/trip/${trip.seedCode}`);
@@ -74,33 +148,68 @@ export function TimelinePanel({
     }
   }
 
-  async function handleAddSpot(isTrunk: boolean) {
-    if (!newName.trim()) return;
-    setAdding(true);
-    try {
-      const member = trip.members.find((m) => m.id === sproutMemberId);
-      const res = await fetch(`/api/trip/${trip.seedCode}/spot`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: newName.trim(),
-          latitude: 33.59 + Math.random() * 0.02,
-          longitude: 130.4 + Math.random() * 0.02,
-          isTrunk,
-          scheduledAt: fromDatetimeLocalValue(newTime),
-          memberId: isTrunk ? undefined : sproutMemberId || undefined,
-          memberName: isTrunk ? undefined : member?.name,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to add spot");
-      setNewName("");
-      setNewTime("");
-      await refreshTrip();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setAdding(false);
+  function defaultCoordsForNewSpot(daySpots: SpotDto[]) {
+    if (daySpots.length > 0) {
+      return {
+        latitude: daySpots[0].latitude,
+        longitude: daySpots[0].longitude,
+      };
     }
+    const slug = inferTripDestination(trip.title, trip.spots);
+    const centers: Record<string, { lat: number; lng: number }> = {
+      taipei: { lat: 25.033, lng: 121.565 },
+      tokyo: { lat: 35.6762, lng: 139.6503 },
+      osaka: { lat: 34.6937, lng: 135.5023 },
+      fukuoka: { lat: 33.59, lng: 130.4 },
+      seoul: { lat: 37.5665, lng: 126.978 },
+      busan: { lat: 35.1796, lng: 129.0756 },
+    };
+    const center = centers[slug] ?? centers.fukuoka;
+    return {
+      latitude: center.lat + (Math.random() - 0.5) * 0.01,
+      longitude: center.lng + (Math.random() - 0.5) * 0.01,
+    };
+  }
+
+  async function handleAddSpotToDay(
+    dateKey: string,
+    payload: AddSpotPayload,
+    daySpots: SpotDto[],
+    isTrunk: boolean
+  ) {
+    const member = trip.members.find((m) => m.id === sproutMemberId);
+    const fallback = defaultCoordsForNewSpot(daySpots);
+    const res = await fetch(`/api/trip/${trip.seedCode}/spot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: payload.name,
+        latitude:
+          payload.latitude && payload.longitude
+            ? payload.latitude
+            : fallback.latitude,
+        longitude:
+          payload.latitude && payload.longitude
+            ? payload.longitude
+            : fallback.longitude,
+        notes: payload.notes,
+        isTrunk,
+        scheduledAt: defaultScheduledAtForDay(dateKey, daySpots),
+        memberId: isTrunk ? undefined : sproutMemberId || undefined,
+        memberName: isTrunk ? undefined : member?.name,
+      }),
+    });
+    if (!res.ok) throw new Error("Failed to add spot");
+    await refreshTrip();
+  }
+
+  function cardToPayload(card: DiscoverCard): AddSpotPayload {
+    return {
+      name: card.name,
+      latitude: card.latitude,
+      longitude: card.longitude,
+      notes: card.description,
+    };
   }
 
   return (
@@ -154,19 +263,18 @@ export function TimelinePanel({
               onDaySelect={onDaySelect}
               onEdit={(s) => {
                 setEditingSpot(s);
+                setEditIsTrunk(true);
                 setEditOpen(true);
+                onEditSpotChange?.(s.id);
               }}
               onDiscover={onDiscoverSpot}
               onTripUpdate={onTripUpdate}
-            />
-            <AddSpotForm
-              newName={newName}
-              setNewName={setNewName}
-              newTime={newTime}
-              setNewTime={setNewTime}
-              adding={adding}
-              onAdd={() => handleAddSpot(true)}
-              label="加入主幹"
+              onAddToDay={(dateKey, payload, daySpots) =>
+                handleAddSpotToDay(dateKey, payload, daySpots, true)
+              }
+              onAddCardToDay={(dateKey, card, daySpots) =>
+                handleAddSpotToDay(dateKey, cardToPayload(card), daySpots, true)
+              }
             />
           </TabsContent>
 
@@ -174,19 +282,6 @@ export function TimelinePanel({
             value="sprouts"
             className="flex-1 space-y-3 overflow-y-auto"
           >
-            <SortableDayTimeline
-              trip={trip}
-              isTrunk={false}
-              onDaySelect={onDaySelect}
-              onEdit={(s) => {
-                setEditingSpot(s);
-                setEditOpen(true);
-              }}
-              onDiscover={onDiscoverSpot}
-              onGraft={handleGraft}
-              graftingId={graftingId}
-              onTripUpdate={onTripUpdate}
-            />
             {trip.members.length > 0 && (
               <select
                 className="h-8 w-full rounded-md border border-emerald-200 bg-white px-2 text-sm"
@@ -200,14 +295,26 @@ export function TimelinePanel({
                 ))}
               </select>
             )}
-            <AddSpotForm
-              newName={newName}
-              setNewName={setNewName}
-              newTime={newTime}
-              setNewTime={setNewTime}
-              adding={adding}
-              onAdd={() => handleAddSpot(false)}
-              label="種一支 Sprout"
+            <SortableDayTimeline
+              trip={trip}
+              isTrunk={false}
+              onDaySelect={onDaySelect}
+              onEdit={(s) => {
+                setEditingSpot(s);
+                setEditIsTrunk(false);
+                setEditOpen(true);
+                onEditSpotChange?.(s.id);
+              }}
+              onDiscover={onDiscoverSpot}
+              onGraft={handleGraft}
+              graftingId={graftingId}
+              onTripUpdate={onTripUpdate}
+              onAddToDay={(dateKey, payload, daySpots) =>
+                handleAddSpotToDay(dateKey, payload, daySpots, false)
+              }
+              onAddCardToDay={(dateKey, card, daySpots) =>
+                handleAddSpotToDay(dateKey, cardToPayload(card), daySpots, false)
+              }
             />
           </TabsContent>
         </Tabs>
@@ -215,53 +322,37 @@ export function TimelinePanel({
 
       <SpotEditDialog
         spot={editingSpot}
-        open={editOpen}
-        onOpenChange={setEditOpen}
+        previousSpot={previousEditingSpot}
+        open={editOpen && !mapPickPending}
+        onOpenChange={(open) => {
+          if (!open && mapPickPending) {
+            setMapPickPending(false);
+            onCancelMapPick?.();
+          }
+          setEditOpen(open);
+          if (!open) {
+            setMapPickPending(false);
+            onEditSpotChange?.(null);
+          }
+        }}
         onSaved={refreshTrip}
+        mapPickActive={!!editingSpot && mapPickSpotId === editingSpot.id}
+        onStartMapPick={
+          editingSpot && onStartMapPick
+            ? () => {
+                setMapPickPending(true);
+                setEditOpen(false);
+                onEditSpotChange?.(null);
+                onStartMapPick(editingSpot.id);
+              }
+            : undefined
+        }
+        mapPickResult={
+          editingSpot && mapPickResult?.spotId === editingSpot.id
+            ? { lat: mapPickResult.lat, lng: mapPickResult.lng }
+            : null
+        }
       />
     </>
-  );
-}
-
-function AddSpotForm({
-  newName,
-  setNewName,
-  newTime,
-  setNewTime,
-  adding,
-  onAdd,
-  label,
-}: {
-  newName: string;
-  setNewName: (v: string) => void;
-  newTime: string;
-  setNewTime: (v: string) => void;
-  adding: boolean;
-  onAdd: () => void;
-  label: string;
-}) {
-  return (
-    <div className="space-y-2 border-t border-emerald-100 pt-3">
-      <Input
-        placeholder="景點名稱…"
-        value={newName}
-        onChange={(e) => setNewName(e.target.value)}
-      />
-      <Input
-        type="datetime-local"
-        value={newTime}
-        onChange={(e) => setNewTime(e.target.value)}
-        className="text-sm"
-      />
-      <Button
-        className="w-full"
-        size="sm"
-        onClick={onAdd}
-        disabled={adding || !newName.trim()}
-      >
-        <Plus className="h-4 w-4" />
-        {label}
-      </Button>
-    </div>
   );
 }

@@ -41,21 +41,13 @@ export function TripTasksPanel({ trip, onTripUpdate }: TripTasksPanelProps) {
     }
   }
 
-  async function updateField(
-    task: TripTaskDto,
-    field: "assignee" | "amount",
-    value: string
-  ) {
+  async function updateAssignee(task: TripTaskDto, value: string) {
     setBusyId(task.id);
     try {
       await fetch(`/api/trip/${trip.seedCode}/task/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          field === "amount"
-            ? { amount: value === "" ? null : Number(value) }
-            : { assignee: value || null }
-        ),
+        body: JSON.stringify({ assignee: value || null }),
       });
       await refreshTrip();
     } finally {
@@ -98,7 +90,7 @@ export function TripTasksPanel({ trip, onTripUpdate }: TripTasksPanelProps) {
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-bold text-amber-950">
           <ClipboardList className="h-4 w-4" />
-          訂位 · 分帳清單
+          訂位清單
         </h2>
         <span className="text-xs text-amber-800">
           {doneCount}/{trip.tasks.length} 完成
@@ -140,31 +132,17 @@ export function TripTasksPanel({ trip, onTripUpdate }: TripTasksPanelProps) {
                     {CATEGORY_LABEL[task.category] ?? task.category}
                   </span>
                 </p>
-                <div className="mt-1.5 flex flex-wrap gap-2">
-                  <Input
-                    placeholder="負責人"
-                    className="h-8 max-w-[7rem] text-xs"
-                    defaultValue={task.assignee ?? ""}
-                    onBlur={(e) => {
-                      const v = e.target.value.trim();
-                      if (v !== (task.assignee ?? "")) {
-                        void updateField(task, "assignee", v);
-                      }
-                    }}
-                  />
-                  <Input
-                    placeholder="金額"
-                    type="number"
-                    className="h-8 max-w-[5.5rem] text-xs"
-                    defaultValue={task.amount ?? ""}
-                    onBlur={(e) => {
-                      const v = e.target.value;
-                      const prev =
-                        task.amount == null ? "" : String(task.amount);
-                      if (v !== prev) void updateField(task, "amount", v);
-                    }}
-                  />
-                </div>
+                <Input
+                  placeholder="負責人"
+                  className="mt-1.5 h-8 max-w-full text-xs"
+                  defaultValue={task.assignee ?? ""}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v !== (task.assignee ?? "")) {
+                      void updateAssignee(task, v);
+                    }
+                  }}
+                />
               </div>
               <button
                 type="button"

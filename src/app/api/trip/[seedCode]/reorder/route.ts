@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { tripDetailInclude } from "@/lib/trip-include";
 import { serializeTrip } from "@/lib/trip-serializer";
 
 type RouteContext = { params: Promise<{ seedCode: string }> };
@@ -67,11 +68,7 @@ export async function PATCH(
 
     const updated = await prisma.trip.findUnique({
       where: { seedCode },
-      include: {
-        spots: { include: { member: true }, orderBy: { sortOrder: "asc" } },
-        members: true,
-        tasks: { orderBy: { sortOrder: "asc" } },
-      },
+      include: tripDetailInclude,
     });
 
     return NextResponse.json(serializeTrip(updated!));

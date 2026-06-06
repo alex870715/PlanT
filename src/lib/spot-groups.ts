@@ -191,6 +191,24 @@ export function buildMapDayFilters(
   return filters;
 }
 
+/** 新增景點到某日：接在當日最後一站之後 2h，或預設 10:00 */
+export function defaultScheduledAtForDay(
+  dateKey: string,
+  daySpots: SpotDto[]
+): string {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  if (daySpots.length > 0) {
+    const sorted = sortSpotsChronologically(daySpots);
+    const last = sorted[sorted.length - 1];
+    if (last.scheduledAt) {
+      const t = new Date(last.scheduledAt);
+      t.setHours(t.getHours() + 2, 0, 0, 0);
+      return t.toISOString();
+    }
+  }
+  return new Date(y, m - 1, d, 10, 0, 0, 0).toISOString();
+}
+
 export function applySpotToDay(
   spot: SpotDto,
   targetDateKey: string,

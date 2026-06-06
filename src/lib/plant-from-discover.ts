@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { generateUniqueSeedCode } from "@/lib/seed-code";
 import { buildGeoSchedule } from "@/lib/trip-schedule";
 import { DEFAULT_TRIP_TASKS } from "@/lib/trip-tasks";
+import { tripCoreInclude, tripDetailInclude } from "@/lib/trip-include";
 import { serializeTrip } from "@/lib/trip-serializer";
 import type { DiscoverCard } from "@/types/discover";
 
@@ -77,6 +78,8 @@ export async function plantTripFromLikedCards(options: {
         phone: s.phone,
         notes: s.notes,
         scheduledAt: null,
+        travelMode: null,
+        travelMinutes: null,
         isTrunk: true,
         sortOrder: s.sortOrder,
         memberId: null,
@@ -98,14 +101,31 @@ export async function plantTripFromLikedCards(options: {
     );
   }
 
-  const full = await prisma.trip.findUnique({
-    where: { id: trip.id },
-    include: {
-      spots: { include: { member: true }, orderBy: { sortOrder: "asc" } },
-      members: true,
-      tasks: { orderBy: { sortOrder: "asc" } },
-    },
-  });
+  const full = await loadTripForSerialize(trip.id);
 
-  return { seedCode, trip: serializeTrip(full!) };
+  return { seedCode, trip: serializeTrip(full) };
+}
+
+async function loadTripForSerialize(tripId: string) {
+  try {
+    const full = await prisma.trip.findUnique({
+      where: { id: tripId },
+      include: tripDetailInclude,
+    });
+    if (!full) throw new Error("Trip not found after create");
+    return full;
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes("Unknown field `expenses`")
+    ) {
+      const full = await prisma.trip.findUnique({
+        where: { id: tripId },
+        include: tripCoreInclude,
+      });
+      if (!full) throw new Error("Trip not found after create");
+      return full;
+    }
+    throw error;
+  }
 }

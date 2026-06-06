@@ -11,6 +11,8 @@ export function serializeSpot(spot: Spot & { member?: Member | null }): SpotDto 
     phone: spot.phone,
     notes: spot.notes,
     scheduledAt: spot.scheduledAt?.toISOString() ?? null,
+    travelMode: spot.travelMode,
+    travelMinutes: spot.travelMinutes,
     isTrunk: spot.isTrunk,
     sortOrder: spot.sortOrder,
     memberId: spot.memberId,
