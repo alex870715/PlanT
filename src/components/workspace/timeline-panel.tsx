@@ -35,6 +35,8 @@ type TimelinePanelProps = {
   onEditSpotChange?: (spotId: string | null) => void;
   externalEditSpotId?: string | null;
   onExternalEditHandled?: () => void;
+  /** 切到某團員支線分頁時回報，讓右側地圖串該人路線（null＝主幹分頁） */
+  onSproutFocusChange?: (memberId: string | null) => void;
 };
 
 export function TimelinePanel({
@@ -49,11 +51,21 @@ export function TimelinePanel({
   onEditSpotChange,
   externalEditSpotId,
   onExternalEditHandled,
+  onSproutFocusChange,
 }: TimelinePanelProps) {
   const [graftingId, setGraftingId] = useState<string | null>(null);
+  const [branchTab, setBranchTab] = useState<"trunk" | "sprouts">("trunk");
   const [sproutMemberId, setSproutMemberId] = useState(
     trip.members[0]?.id ?? ""
   );
+
+  useEffect(() => {
+    onSproutFocusChange?.(branchTab === "sprouts" ? sproutMemberId : null);
+  }, [branchTab, sproutMemberId, onSproutFocusChange]);
+
+  useEffect(() => {
+    return () => onSproutFocusChange?.(null);
+  }, [onSproutFocusChange]);
   const [editingSpot, setEditingSpot] = useState<SpotDto | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [mapPickPending, setMapPickPending] = useState(false);
@@ -236,13 +248,17 @@ export function TimelinePanel({
           )}
         </div>
 
-        <Tabs defaultValue="trunk" className="flex flex-1 flex-col px-4 pb-4">
+        <Tabs
+          value={branchTab}
+          onValueChange={(v) => setBranchTab(v as "trunk" | "sprouts")}
+          className="flex flex-1 flex-col px-4 pb-4"
+        >
           <TabsList className="w-full">
             <TabsTrigger value="trunk" className="flex-1">
-              🌳 Trunk Route
+              🌳 主線行程
             </TabsTrigger>
             <TabsTrigger value="sprouts" className="flex-1">
-              🌱 My Sprouts
+              🌱 個人支線
             </TabsTrigger>
           </TabsList>
 
@@ -273,21 +289,27 @@ export function TimelinePanel({
             className="flex-1 space-y-3 overflow-y-auto"
           >
             {trip.members.length > 0 && (
-              <select
-                className="h-8 w-full rounded-md border border-emerald-200 bg-white px-2 text-sm"
-                value={sproutMemberId}
-                onChange={(e) => setSproutMemberId(e.target.value)}
-              >
-                {trip.members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} 的支線
-                  </option>
-                ))}
-              </select>
+              <div className="space-y-1">
+                <select
+                  className="h-8 w-full rounded-md border border-emerald-200 bg-white px-2 text-sm"
+                  value={sproutMemberId}
+                  onChange={(e) => setSproutMemberId(e.target.value)}
+                >
+                  {trip.members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} 的支線
+                    </option>
+                  ))}
+                </select>
+                <p className="px-1 text-[11px] text-emerald-600">
+                  切換團員查看各自支線；右側地圖會把主線與此人支線串成 1→S1→2→3
+                </p>
+              </div>
             )}
             <SortableDayTimeline
               trip={trip}
               isTrunk={false}
+              filterMemberId={sproutMemberId}
               onDaySelect={onDaySelect}
               onEdit={(s) => {
                 setEditingSpot(s);

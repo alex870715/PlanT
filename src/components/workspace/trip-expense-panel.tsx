@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import {
   ArrowRight,
   Calculator,
+  Check,
   Loader2,
   Plus,
   Receipt,
@@ -16,9 +17,13 @@ import {
   perPersonShare,
   suggestSettlements,
 } from "@/lib/expense-split";
-import { CURRENCIES, formatMoney } from "@/lib/currency";
+import { CURRENCIES, formatMoney, roundMoney } from "@/lib/currency";
 import { seededFetch } from "@/lib/trip-client";
 import type { TripDto } from "@/types/trip";
+
+function settlementKey(fromId: string, toId: string): string {
+  return `${fromId}->${toId}`;
+}
 
 type TripExpensePanelProps = {
   trip: TripDto;
@@ -37,9 +42,15 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
   const [busyId, setBusyId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [currencySaving, setCurrencySaving] = useState(false);
+  const [settleBusy, setSettleBusy] = useState<string | null>(null);
 
   const currency = trip.currency ?? "TWD";
   const fmt = (n: number) => formatMoney(n, currency);
+
+  // 新增花費時可指定該筆實際支付幣別與匯率（換算成旅程基準幣別）
+  const [expenseCurrency, setExpenseCurrency] = useState(currency);
+  const [rate, setRate] = useState("");
+  const foreign = expenseCurrency !== currency;
 
   const memberNameById = useMemo(
     () => new Map(trip.members.map((m) => [m.id, m.name])),
@@ -52,7 +63,7 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
         trip.members,
         trip.expenses.map((e) => ({
           id: e.id,
-          amount: e.amount,
+          amount: e.baseAmount,
           paidByMemberId: e.paidByMemberId,
           splitMemberIds: e.splitMemberIds,
         })),
@@ -67,9 +78,24 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
   );
 
   const totalSpent = useMemo(
-    () => trip.expenses.reduce((sum, e) => sum + e.amount, 0),
+    () => trip.expenses.reduce((sum, e) => sum + e.baseAmount, 0),
     [trip.expenses]
   );
+
+  // 已完成轉帳：以 from→to 為 key，且金額需與目前建議相符才算數
+  const settledByKey = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const s of trip.settlements ?? []) {
+      if (s.done) map.set(settlementKey(s.fromMemberId, s.toMemberId), s.amount);
+    }
+    return map;
+  }, [trip.settlements]);
+
+  function isSettled(fromId: string, toId: string, amount: number): boolean {
+    const recorded = settledByKey.get(settlementKey(fromId, toId));
+    if (recorded == null) return false;
+    return roundMoney(recorded, currency) === roundMoney(amount, currency);
+  }
 
   async function refreshTrip() {
     const res = await fetch(`/api/trip/${trip.seedCode}`);
@@ -106,6 +132,11 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
     const parsed = Number(amount);
     if (!Number.isFinite(parsed) || parsed <= 0) return;
 
+    const exchangeRate = foreign ? Number(rate) : 1;
+    if (foreign && (!Number.isFinite(exchangeRate) || exchangeRate <= 0)) {
+      return;
+    }
+
     setAdding(true);
     try {
       const res = await fetch(`/api/trip/${trip.seedCode}/expense`, {
@@ -116,7 +147,8 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
           amount: parsed,
           paidByMemberId,
           splitMemberIds,
-          currency,
+          currency: expenseCurrency,
+          exchangeRate,
         }),
       });
       if (!res.ok) {
@@ -125,11 +157,40 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
       }
       setTitle("");
       setAmount("");
+      setRate("");
+      setExpenseCurrency(currency);
       await refreshTrip();
     } catch (e) {
       console.error(e);
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function toggleSettlement(
+    fromId: string,
+    toId: string,
+    amount: number,
+    nextDone: boolean
+  ) {
+    const key = settlementKey(fromId, toId);
+    setSettleBusy(key);
+    try {
+      const res = await fetch(`/api/trip/${trip.seedCode}/settlement`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromMemberId: fromId,
+          toMemberId: toId,
+          amount,
+          done: nextDone,
+        }),
+      });
+      if (res.ok) await refreshTrip();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSettleBusy(null);
     }
   }
 
@@ -186,7 +247,7 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
           onChange={(e) => setTitle(e.target.value)}
           className="h-9 text-sm"
         />
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-[1fr_auto] gap-2">
           <Input
             placeholder="金額"
             type="number"
@@ -197,16 +258,48 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
           />
           <select
             className="h-9 rounded-md border border-rose-200 bg-white px-2 text-sm"
-            value={paidByMemberId}
-            onChange={(e) => setPaidByMemberId(e.target.value)}
+            value={expenseCurrency}
+            onChange={(e) => setExpenseCurrency(e.target.value)}
+            aria-label="此筆花費幣別"
           >
-            {trip.members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name} 先付
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code}
               </option>
             ))}
           </select>
         </div>
+
+        {foreign && (
+          <div className="grid grid-cols-[1fr_auto] items-center gap-2 rounded-md bg-amber-50 px-2 py-1.5">
+            <Input
+              placeholder={`1 ${expenseCurrency} = ? ${currency}`}
+              type="number"
+              min={0}
+              step="any"
+              value={rate}
+              onChange={(e) => setRate(e.target.value)}
+              className="h-8 text-sm"
+            />
+            <span className="whitespace-nowrap text-[11px] text-amber-800">
+              {amount && rate
+                ? `≈ ${fmt(Number(amount) * Number(rate))}`
+                : `匯率 → ${currency}`}
+            </span>
+          </div>
+        )}
+
+        <select
+          className="h-9 w-full rounded-md border border-rose-200 bg-white px-2 text-sm"
+          value={paidByMemberId}
+          onChange={(e) => setPaidByMemberId(e.target.value)}
+        >
+          {trip.members.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name} 先付
+            </option>
+          ))}
+        </select>
         <div>
           <p className="mb-1.5 text-[11px] text-rose-800">參與平分（可取消不參與的人）</p>
           <div className="flex flex-wrap gap-1.5">
@@ -229,10 +322,16 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
             })}
           </div>
         </div>
-        {amount && splitMemberIds.length > 0 && (
+        {amount && splitMemberIds.length > 0 && (!foreign || rate) && (
           <p className="text-[11px] text-rose-700">
             每人{" "}
-            {fmt(perPersonShare(Number(amount), splitMemberIds.length, currency))}
+            {fmt(
+              perPersonShare(
+                Number(amount) * (foreign ? Number(rate) || 0 : 1),
+                splitMemberIds.length,
+                currency
+              )
+            )}
           </p>
         )}
         <Button
@@ -242,7 +341,8 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
             adding ||
             !title.trim() ||
             !amount ||
-            splitMemberIds.length === 0
+            splitMemberIds.length === 0 ||
+            (foreign && !rate)
           }
           onClick={() => void addExpense()}
         >
@@ -260,8 +360,9 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
       {trip.expenses.length > 0 && (
         <ul className="mb-4 space-y-2">
           {trip.expenses.map((expense) => {
+            const isForeign = expense.currency !== currency;
             const share = perPersonShare(
-              expense.amount,
+              expense.baseAmount,
               expense.splitMemberIds.length,
               currency
             );
@@ -278,7 +379,10 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
                   <div className="min-w-0">
                     <p className="font-medium text-rose-950">{expense.title}</p>
                     <p className="mt-0.5 text-xs text-rose-800">
-                      {fmt(expense.amount)} · {expense.paidByName ?? "?"} 先付
+                      {isForeign
+                        ? `${formatMoney(expense.amount, expense.currency)} → ${fmt(expense.baseAmount)}`
+                        : fmt(expense.baseAmount)}{" "}
+                      · {expense.paidByName ?? "?"} 先付
                     </p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
                       {participants} 平分 · 每人 {fmt(share)}
@@ -341,19 +445,59 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
         {settlements.length > 0 && (
           <div className="mt-3 border-t border-rose-100 pt-3">
             <p className="mb-1.5 text-[11px] font-medium text-rose-900">
-              建議轉帳
+              建議轉帳（轉完打勾）
             </p>
-            <ul className="space-y-1 text-xs text-rose-800">
-              {settlements.map((t, i) => (
-                <li key={i} className="flex items-center gap-1">
-                  <span className="font-medium">{t.fromName}</span>
-                  <ArrowRight className="h-3 w-3 shrink-0" />
-                  <span className="font-medium">{t.toName}</span>
-                  <span className="ml-1 font-semibold text-rose-950">
-                    {fmt(t.amount)}
-                  </span>
-                </li>
-              ))}
+            <ul className="space-y-1.5 text-xs text-rose-800">
+              {settlements.map((t) => {
+                const key = settlementKey(t.fromMemberId, t.toMemberId);
+                const done = isSettled(t.fromMemberId, t.toMemberId, t.amount);
+                const busy = settleBusy === key;
+                return (
+                  <li
+                    key={key}
+                    className={`flex items-center gap-2 rounded-md px-2 py-1.5 ${
+                      done ? "bg-emerald-50" : "bg-rose-50/60"
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() =>
+                        void toggleSettlement(
+                          t.fromMemberId,
+                          t.toMemberId,
+                          t.amount,
+                          !done
+                        )
+                      }
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${
+                        done
+                          ? "border-emerald-500 bg-emerald-500 text-white"
+                          : "border-rose-300 bg-white hover:bg-rose-50"
+                      }`}
+                      aria-label={done ? "標為未轉帳" : "標為已轉帳"}
+                    >
+                      {busy ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : done ? (
+                        <Check className="h-3.5 w-3.5" />
+                      ) : null}
+                    </button>
+                    <span
+                      className={`flex flex-1 flex-wrap items-center gap-1 ${
+                        done ? "text-emerald-800 line-through" : ""
+                      }`}
+                    >
+                      <span className="font-medium">{t.fromName}</span>
+                      <ArrowRight className="h-3 w-3 shrink-0" />
+                      <span className="font-medium">{t.toName}</span>
+                      <span className="ml-1 font-semibold text-rose-950">
+                        {fmt(t.amount)}
+                      </span>
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

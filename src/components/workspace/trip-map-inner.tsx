@@ -23,7 +23,7 @@ import {
   type MapDayFilter,
 } from "@/lib/spot-groups";
 import { computeMapViewTarget } from "@/lib/map-view";
-import { partitionSpots } from "@/lib/spots";
+import { partitionSpots, sortSpotsByOrder } from "@/lib/spots";
 import type { SpotDto } from "@/types/trip";
 import "leaflet/dist/leaflet.css";
 
@@ -44,6 +44,8 @@ type TripMapInnerProps = {
   onMapPick?: (lat: number, lng: number) => void;
   onMapPickCancel?: () => void;
   onSpotLocationChange?: (spotId: string, lat: number, lng: number) => void;
+  /** 設定後＝聚焦某團員：地圖只顯示主幹＋此人支線，並串成一條路線 */
+  focusMemberId?: string | null;
 };
 
 function MapClickPick({
@@ -239,10 +241,21 @@ export function TripMapInner({
   onMapPick,
   onMapPickCancel,
   onSpotLocationChange,
+  focusMemberId,
 }: TripMapInnerProps) {
+  const focusMode = !!focusMemberId;
+
+  // 聚焦某人：主幹＋此人支線；否則只顯示主幹（各人支線只在自己分頁出現）
+  const scopedSpots = useMemo(() => {
+    if (focusMemberId) {
+      return spots.filter((s) => s.isTrunk || s.memberId === focusMemberId);
+    }
+    return spots.filter((s) => s.isTrunk);
+  }, [spots, focusMemberId]);
+
   const dayFilters = useMemo(
-    () => buildMapDayFilters(spots, tripStartDate, tripEndDate),
-    [spots, tripStartDate, tripEndDate]
+    () => buildMapDayFilters(scopedSpots, tripStartDate, tripEndDate),
+    [scopedSpots, tripStartDate, tripEndDate]
   );
 
   const [internalDayId, setInternalDayId] = useState("all");
@@ -264,8 +277,8 @@ export function TripMapInner({
     dayFilters.find((f) => f.id === selectedDayId) ?? dayFilters[0];
 
   const { trunk: allTrunk, sprouts: allSprouts } = useMemo(
-    () => partitionSpots(spots),
-    [spots]
+    () => partitionSpots(scopedSpots),
+    [scopedSpots]
   );
 
   const isAllView = activeFilter.id === "all";
@@ -307,13 +320,14 @@ export function TripMapInner({
     return { lat: null, lng: null, zoom: 12, bbox: null };
   }, [mapViewTarget]);
 
-  const trunkRoute = useMemo(
-    () =>
-      visibleTrunk.map(
-        (s) => [s.latitude, s.longitude] as [number, number]
-      ),
-    [visibleTrunk]
-  );
+  // 聚焦某人時：主幹＋此人支線依時間交錯成一條路線（1→S1→2→3）
+  // 否則只連主幹
+  const routePositions = useMemo(() => {
+    const ordered = focusMode
+      ? sortSpotsByOrder([...visibleTrunk, ...visibleSprouts])
+      : visibleTrunk;
+    return ordered.map((s) => [s.latitude, s.longitude] as [number, number]);
+  }, [focusMode, visibleTrunk, visibleSprouts]);
 
   const globalTrunkOrder = useMemo(() => {
     const groups = groupSpotsByDay(allTrunk, tripStartDate, tripEndDate);
@@ -349,10 +363,10 @@ export function TripMapInner({
       const c = mapViewTarget.bounds.getCenter();
       return [c.lat, c.lng];
     }
-    const first = spots.find((s) => s.isTrunk) ?? spots[0];
+    const first = scopedSpots.find((s) => s.isTrunk) ?? scopedSpots[0];
     if (first) return [first.latitude, first.longitude];
     return FUKUOKA_CENTER;
-  }, [mapViewTarget, spots]);
+  }, [mapViewTarget, scopedSpots]);
 
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden rounded-xl border border-emerald-200 shadow-sm">
@@ -392,14 +406,14 @@ export function TripMapInner({
             />
           )}
 
-          {trunkRoute.length >= 2 && (
+          {routePositions.length >= 2 && (
             <Polyline
-              positions={trunkRoute}
+              positions={routePositions}
               pathOptions={{
-                color: isAllView ? "#059669" : "#10b981",
-                weight: isAllView ? 4 : 5,
+                color: focusMode ? "#65a30d" : isAllView ? "#059669" : "#10b981",
+                weight: isAllView && !focusMode ? 4 : 5,
                 opacity: 0.85,
-                dashArray: isAllView ? undefined : "0",
+                dashArray: isAllView && !focusMode ? undefined : "0",
               }}
             />
           )}
@@ -485,7 +499,9 @@ export function TripMapInner({
             {visibleSprouts.length > 0
               ? ` · 支線 ${visibleSprouts.length}`
               : ""}
-            {!isAllView && " · 依日編號 1→N"}
+            {focusMode
+              ? " · 已串接個人支線 1→S1→2"
+              : !isAllView && " · 依日編號 1→N"}
           </p>
         </div>
 

@@ -32,6 +32,7 @@ type TripMapProps = {
   onMapPick?: (lat: number, lng: number) => void;
   onMapPickCancel?: () => void;
   onSpotLocationChange?: (spotId: string, lat: number, lng: number) => void;
+  focusMemberId?: string | null;
 };
 
 export function TripMap({
@@ -51,6 +52,7 @@ export function TripMap({
   onMapPick,
   onMapPickCancel,
   onSpotLocationChange,
+  focusMemberId,
 }: TripMapProps) {
   return (
     <TripMapInner
@@ -70,6 +72,7 @@ export function TripMap({
       onMapPick={onMapPick}
       onMapPickCancel={onMapPickCancel}
       onSpotLocationChange={onSpotLocationChange}
+      focusMemberId={focusMemberId}
     />
   );
 }

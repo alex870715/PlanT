@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { serializeTask } from "@/lib/task-serializer";
 
 type RouteContext = {
   params: Promise<{ seedCode: string; taskId: string }>;
@@ -61,18 +62,10 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const task = await prisma.tripTask.update({
       where: { id: taskId },
       data,
+      include: { attachments: true, confirmations: true },
     });
 
-    return NextResponse.json({
-      id: task.id,
-      title: task.title,
-      category: task.category,
-      assignee: task.assignee,
-      amount: task.amount == null ? null : Number(task.amount),
-      notes: task.notes,
-      done: task.done,
-      sortOrder: task.sortOrder,
-    });
+    return NextResponse.json(serializeTask(task, seedCode));
   } catch (error) {
     console.error("PATCH /api/trip/[seedCode]/task/[taskId]", error);
     return jsonError("Failed to update task", 500);

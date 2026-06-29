@@ -1,30 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { serializeTask } from "@/lib/task-serializer";
 
 type RouteContext = { params: Promise<{ seedCode: string }> };
-
-function serializeTask(task: {
-  id: string;
-  title: string;
-  category: string;
-  assignee: string | null;
-  amount: unknown;
-  notes: string | null;
-  done: boolean;
-  sortOrder: number;
-}) {
-  return {
-    id: task.id,
-    title: task.title,
-    category: task.category,
-    assignee: task.assignee,
-    amount: task.amount == null ? null : Number(task.amount),
-    notes: task.notes,
-    done: task.done,
-    sortOrder: task.sortOrder,
-  };
-}
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
@@ -63,9 +42,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
         notes: body.notes ? String(body.notes).trim() : null,
         sortOrder: (maxOrder._max.sortOrder ?? -1) + 1,
       },
+      include: { attachments: true, confirmations: true },
     });
 
-    return NextResponse.json(serializeTask(task), { status: 201 });
+    return NextResponse.json(serializeTask(task, seedCode), { status: 201 });
   } catch (error) {
     console.error("POST /api/trip/[seedCode]/task", error);
     return jsonError("Failed to create task", 500);

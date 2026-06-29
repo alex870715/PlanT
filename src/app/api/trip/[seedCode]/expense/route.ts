@@ -41,11 +41,20 @@ export async function POST(request: NextRequest, context: RouteContext) {
       splitMemberIds = [...memberIds];
     }
 
+    const currency = (body.currency ?? trip.currency ?? "TWD").toUpperCase();
+    // 與基準幣別相同時匯率固定為 1，避免誤填
+    const exchangeRate =
+      currency === (trip.currency ?? "TWD").toUpperCase()
+        ? 1
+        : (body.exchangeRate ?? 1);
+
     const expense = await prisma.tripExpense.create({
       data: {
         tripId: trip.id,
         title: body.title,
         amount: body.amount,
+        currency,
+        exchangeRate,
         paidByMemberId: body.paidByMemberId,
         splitMemberIds,
         notes: body.notes?.trim() || null,
@@ -53,7 +62,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
       include: { paidBy: true },
     });
 
-    return NextResponse.json(serializeExpense(expense), { status: 201 });
+    return NextResponse.json(serializeExpense(expense, trip.currency), {
+      status: 201,
+    });
   } catch (error) {
     console.error("POST /api/trip/[seedCode]/expense", error);
     return jsonError("Failed to create expense", 500);

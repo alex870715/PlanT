@@ -21,6 +21,21 @@ export type MemberDto = {
   email: string | null;
 };
 
+export type TripTaskAttachmentDto = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  url: string;
+  uploadedBy: string | null;
+  createdAt: string;
+};
+
+export type TripTaskConfirmationDto = {
+  memberId: string;
+  memberName: string;
+  confirmedAt: string;
+};
+
 export type TripTaskDto = {
   id: string;
   title: string;
@@ -30,17 +45,33 @@ export type TripTaskDto = {
   notes: string | null;
   done: boolean;
   sortOrder: number;
+  attachments: TripTaskAttachmentDto[];
+  confirmations: TripTaskConfirmationDto[];
 };
 
 export type TripExpenseDto = {
   id: string;
   title: string;
+  /** 原始付款金額（以 currency 計價） */
   amount: number;
+  /** 此筆花費實際支付的幣別 */
+  currency: string;
+  /** 換算成旅程基準幣別的匯率 */
+  exchangeRate: number;
+  /** 換算後的基準幣別金額 = amount * exchangeRate */
+  baseAmount: number;
   paidByMemberId: string;
   paidByName: string | null;
   splitMemberIds: string[];
   notes: string | null;
   createdAt: string;
+};
+
+export type TripSettlementDto = {
+  fromMemberId: string;
+  toMemberId: string;
+  amount: number;
+  done: boolean;
 };
 
 export type TripDto = {
@@ -54,6 +85,7 @@ export type TripDto = {
   members: MemberDto[];
   tasks: TripTaskDto[];
   expenses: TripExpenseDto[];
+  settlements: TripSettlementDto[];
 };
 
 export type CreateTripBody = {

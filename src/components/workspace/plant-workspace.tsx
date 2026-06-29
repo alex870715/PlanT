@@ -11,8 +11,12 @@ import { SpotDiscoverDialog } from "@/components/workspace/spot-discover-dialog"
 import { TimelinePanel } from "@/components/workspace/timeline-panel";
 import { TripExpensePanel } from "@/components/workspace/trip-expense-panel";
 import { TripTasksPanel } from "@/components/workspace/trip-tasks-panel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatMoney } from "@/lib/currency";
 import { seededFetch, setActiveSeed } from "@/lib/trip-client";
 import type { SpotDto, TripDto } from "@/types/trip";
+
+type WorkspaceTab = "timeline" | "tasks" | "expense";
 
 type PlantWorkspaceProps = {
   seedCode: string;
@@ -36,6 +40,16 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
   const [externalEditSpotId, setExternalEditSpotId] = useState<string | null>(
     null
   );
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("timeline");
+  const [sproutFocusMemberId, setSproutFocusMemberId] = useState<string | null>(
+    null
+  );
+
+  const handleSproutFocusChange = useCallback((memberId: string | null) => {
+    setSproutFocusMemberId(memberId);
+    // 進入某人支線視角時，地圖切回「全部」以顯示完整 1→S1→2→3 路線
+    if (memberId) setMapDayId("all");
+  }, []);
 
   async function updateSpotLocation(spotId: string, lat: number, lng: number) {
     const res = await seededFetch(`/api/spot/${spotId}`, {
@@ -126,6 +140,9 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
   }
 
   const activeDraggableId = moveSpotId ?? draggableSpotId;
+  const undoneTasks = trip.tasks.filter((t) => !t.done).length;
+  const totalSpent = trip.expenses.reduce((sum, e) => sum + e.amount, 0);
+  const showMapOnMobile = activeTab === "timeline";
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -154,39 +171,75 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
       <div className="grid flex-1 gap-4 p-3 sm:p-4 lg:grid-cols-2 lg:items-start lg:p-6">
         <div className="order-2 flex min-w-0 flex-col gap-4 lg:order-1">
           <MembersPanel trip={trip} onTripUpdate={setTrip} />
-          <TripTasksPanel trip={trip} onTripUpdate={setTrip} />
-          <TripExpensePanel trip={trip} onTripUpdate={setTrip} />
-          <TimelinePanel
-            trip={trip}
-            onTripUpdate={setTrip}
-            onDaySelect={setMapDayId}
-            onDiscoverSpot={(spot) => {
-              setDiscoverSpot(spot);
-              setDiscoverOpen(true);
-            }}
-            mapPickSpotId={mapPickSpotId}
-            mapPickResult={mapPickResult}
-            externalEditSpotId={externalEditSpotId}
-            onExternalEditHandled={() => setExternalEditSpotId(null)}
-            onStartMapPick={(spotId) => {
-              setMoveSpotId(null);
-              setDraggableSpotId(null);
-              setMapPickSpotId(spotId);
-              setMapPickResult(null);
-            }}
-            onCancelMapPick={() => {
-              setMapPickSpotId(null);
-              setMapPickResult(null);
-            }}
-            onEditSpotChange={(spotId) => {
-              setMoveSpotId(null);
-              setDraggableSpotId(spotId);
-            }}
-          />
+          <Tabs
+            value={activeTab}
+            onValueChange={(v) => setActiveTab(v as WorkspaceTab)}
+          >
+            <TabsList className="grid h-auto w-full grid-cols-3">
+              <TabsTrigger value="timeline" className="gap-1">
+                🗺️ 行程
+              </TabsTrigger>
+              <TabsTrigger value="tasks" className="gap-1">
+                📋 訂位
+                {undoneTasks > 0 && (
+                  <span className="rounded-full bg-amber-500 px-1.5 text-[10px] font-bold leading-4 text-white">
+                    {undoneTasks}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="expense" className="gap-1">
+                💰 記帳
+                {totalSpent > 0 && (
+                  <span className="max-w-[7ch] truncate text-[10px] font-semibold text-rose-600">
+                    {formatMoney(totalSpent, trip.currency)}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="timeline">
+              <TimelinePanel
+                trip={trip}
+                onTripUpdate={setTrip}
+                onDaySelect={setMapDayId}
+                onDiscoverSpot={(spot) => {
+                  setDiscoverSpot(spot);
+                  setDiscoverOpen(true);
+                }}
+                mapPickSpotId={mapPickSpotId}
+                mapPickResult={mapPickResult}
+                externalEditSpotId={externalEditSpotId}
+                onExternalEditHandled={() => setExternalEditSpotId(null)}
+                onStartMapPick={(spotId) => {
+                  setMoveSpotId(null);
+                  setDraggableSpotId(null);
+                  setMapPickSpotId(spotId);
+                  setMapPickResult(null);
+                }}
+                onCancelMapPick={() => {
+                  setMapPickSpotId(null);
+                  setMapPickResult(null);
+                }}
+                onEditSpotChange={(spotId) => {
+                  setMoveSpotId(null);
+                  setDraggableSpotId(spotId);
+                }}
+                onSproutFocusChange={handleSproutFocusChange}
+              />
+            </TabsContent>
+
+            <TabsContent value="tasks">
+              <TripTasksPanel trip={trip} onTripUpdate={setTrip} />
+            </TabsContent>
+
+            <TabsContent value="expense">
+              <TripExpensePanel trip={trip} onTripUpdate={setTrip} />
+            </TabsContent>
+          </Tabs>
         </div>
         <div
           id="trip-map-anchor"
-          className="order-1 w-full lg:order-2 lg:sticky lg:top-4 lg:self-start"
+          className={`${showMapOnMobile ? "order-1" : "hidden"} w-full lg:order-2 lg:block lg:sticky lg:top-4 lg:self-start`}
         >
           <div className="mx-auto aspect-square w-full max-w-[min(100vw-1.5rem,520px)] touch-pan-y lg:max-w-none">
             <TripMap
@@ -194,6 +247,7 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
               tripTitle={trip.title}
               tripStartDate={trip.startDate}
               tripEndDate={trip.endDate}
+              focusMemberId={activeTab === "timeline" ? sproutFocusMemberId : null}
               selectedDayId={mapDayId}
               onDayChange={setMapDayId}
               draggableSpotId={activeDraggableId}

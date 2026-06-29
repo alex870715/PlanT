@@ -7,11 +7,32 @@ export const tripMinimalInclude = {
 /** 不含記帳，相容舊版 Prisma Client */
 export const tripCoreInclude = {
   ...tripMinimalInclude,
+  tasks: {
+    orderBy: { sortOrder: "asc" as const },
+    include: {
+      attachments: { orderBy: { createdAt: "asc" as const } },
+      confirmations: { orderBy: { createdAt: "asc" as const } },
+    },
+  },
+};
+
+/** 任務不含附件（相容尚未建立 TripTaskAttachment 表的資料庫） */
+export const tripTasksPlainInclude = {
+  ...tripMinimalInclude,
   tasks: { orderBy: { sortOrder: "asc" as const } },
 };
 
-/** 統一 Trip 查詢關聯，避免各 API 漏 include */
-export const tripDetailInclude = {
+/** 含記帳、任務不含附件（相容尚未建立 TripTaskAttachment 表） */
+export const tripExpensePlainInclude = {
+  ...tripTasksPlainInclude,
+  expenses: {
+    include: { paidBy: true },
+    orderBy: { createdAt: "desc" as const },
+  },
+};
+
+/** 含記帳但不含結算（相容尚未建立 TripSettlement 表的資料庫） */
+export const tripExpenseInclude = {
   ...tripCoreInclude,
   expenses: {
     include: { paidBy: true },
@@ -19,8 +40,15 @@ export const tripDetailInclude = {
   },
 };
 
+/** 統一 Trip 查詢關聯，避免各 API 漏 include */
+export const tripDetailInclude = {
+  ...tripExpenseInclude,
+  settlements: true,
+};
+
 export const tripIncludeFallbacks = [
   tripDetailInclude,
-  tripCoreInclude,
+  tripExpenseInclude,
+  tripExpensePlainInclude,
   tripMinimalInclude,
 ] as const;

@@ -46,6 +46,8 @@ type AddSpotPayload = {
 type SortableDayTimelineProps = {
   trip: TripDto;
   isTrunk: boolean;
+  /** 支線分頁時，只顯示此團員的支線 */
+  filterMemberId?: string;
   onDaySelect?: (dayGroupId: string) => void;
   onEdit: (spot: SpotDto) => void;
   onDiscover: (spot: SpotDto) => void;
@@ -62,6 +64,7 @@ type SortableDayTimelineProps = {
 export function SortableDayTimeline({
   trip,
   isTrunk,
+  filterMemberId,
   onDaySelect,
   onEdit,
   onDiscover,
@@ -75,8 +78,11 @@ export function SortableDayTimeline({
   const [addingDayId, setAddingDayId] = useState<string | null>(null);
   const branchSpots = useMemo(() => {
     const { trunk, sprouts } = partitionSpots(trip.spots);
-    return isTrunk ? trunk : sprouts;
-  }, [trip.spots, isTrunk]);
+    if (isTrunk) return trunk;
+    return filterMemberId
+      ? sprouts.filter((s) => s.memberId === filterMemberId)
+      : sprouts;
+  }, [trip.spots, isTrunk, filterMemberId]);
 
   const initialGroups = useMemo(
     () => groupSpotsByDay(branchSpots, trip.startDate, trip.endDate),

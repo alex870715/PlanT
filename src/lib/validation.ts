@@ -35,6 +35,7 @@ export const createExpenseSchema = z.object({
   splitMemberIds: z.array(z.string().trim().max(64)).max(50).optional(),
   notes: z.string().trim().max(500).optional().nullable(),
   currency: z.string().trim().length(3).optional(),
+  exchangeRate: z.number().finite().positive().max(1_000_000).optional(),
 });
 
 export const createTripSchema = z.object({
