@@ -891,8 +891,23 @@ export function DiscoverFlow() {
             {isGroup && votingOpen && (
               <>
                 <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-center text-xs text-amber-900">
-                  等待投票截止後，即可建立 PlanT 旅程並一起排程
+                  {isHost
+                    ? "你是發起人，可直接提前截止投票並開始排程"
+                    : "等待投票截止後，即可建立 PlanT 旅程並一起排程"}
                 </p>
+                {isHost && (
+                  <Button
+                    className="h-11 w-full bg-violet-600 hover:bg-violet-700"
+                    disabled={loading}
+                    onClick={() => void closeVotingEarly()}
+                  >
+                    {loading ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      "提前截止投票"
+                    )}
+                  </Button>
+                )}
                 <Button
                   className="h-11 w-full"
                   variant="outline"
