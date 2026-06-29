@@ -21,6 +21,7 @@ import type { TripDto, TripTaskDto } from "@/types/trip";
 
 type TripTasksPanelProps = {
   trip: TripDto;
+  activeMemberId: string | null;
   onTripUpdate: (trip: TripDto) => void;
 };
 
@@ -33,15 +34,16 @@ const CATEGORY_LABEL: Record<string, string> = {
 const ACCEPT_UPLOAD =
   "image/jpeg,image/png,image/webp,image/gif,application/pdf";
 
-export function TripTasksPanel({ trip, onTripUpdate }: TripTasksPanelProps) {
+export function TripTasksPanel({
+  trip,
+  activeMemberId,
+  onTripUpdate,
+}: TripTasksPanelProps) {
   const [newTitle, setNewTitle] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [uploadingId, setUploadingId] = useState<string | null>(null);
-  const [activeMemberId, setActiveMemberId] = useState(
-    trip.members[0]?.id ?? ""
-  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadTargetTaskId, setUploadTargetTaskId] = useState<string | null>(
     null
@@ -159,7 +161,9 @@ export function TripTasksPanel({ trip, onTripUpdate }: TripTasksPanelProps) {
 
       const formData = new FormData();
       formData.append("file", new File([blob], fileName, { type: mimeType }));
-      const uploader = memberNameById.get(activeMemberId);
+      const uploader = activeMemberId
+        ? memberNameById.get(activeMemberId)
+        : undefined;
       if (uploader) formData.append("uploadedBy", uploader);
 
       const res = await fetch(
@@ -233,18 +237,20 @@ export function TripTasksPanel({ trip, onTripUpdate }: TripTasksPanelProps) {
       {trip.members.length > 0 && (
         <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-100 bg-white px-2 py-1.5">
           <Users className="h-3.5 w-3.5 shrink-0 text-amber-700" />
-          <span className="text-[11px] text-amber-800">我是</span>
-          <select
-            className="h-7 flex-1 rounded-md border border-amber-200 bg-white px-2 text-xs"
-            value={activeMemberId}
-            onChange={(e) => setActiveMemberId(e.target.value)}
-          >
-            {trip.members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-          </select>
+          {activeMemberId ? (
+            <span className="text-xs text-amber-900">
+              以{" "}
+              <strong>
+                {trip.members.find((m) => m.id === activeMemberId)?.name ??
+                  "?"}
+              </strong>{" "}
+              的身份上傳／確認
+            </span>
+          ) : (
+            <span className="text-xs text-amber-800">
+              請先在上方團員區按「這是我」綁定身份
+            </span>
+          )}
         </div>
       )}
 

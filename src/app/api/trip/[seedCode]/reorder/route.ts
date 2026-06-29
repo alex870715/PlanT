@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { findTripBySeedCode } from "@/lib/load-trip";
 import { prisma } from "@/lib/prisma";
+import { logTripActivity } from "@/lib/trip-activity";
+import { resolveTripActor } from "@/lib/trip-actor";
 import { serializeTrip } from "@/lib/trip-serializer";
 
 type RouteContext = { params: Promise<{ seedCode: string }> };
@@ -35,7 +37,7 @@ export async function PATCH(
 
     const trip = await prisma.trip.findUnique({
       where: { seedCode },
-      include: { spots: true },
+      include: { spots: true, members: true },
     });
 
     if (!trip) return jsonError("Trip not found", 404);
@@ -65,6 +67,15 @@ export async function PATCH(
         });
       })
     );
+
+    const actor = await resolveTripActor(request, trip.members);
+    await logTripActivity({
+      tripId: trip.id,
+      memberId: actor.memberId,
+      memberName: actor.memberName,
+      action: "spot_reorder",
+      detail: body.isTrunk ? "主線排序" : "支線排序",
+    });
 
     const updated = await findTripBySeedCode(seedCode);
     if (!updated) return jsonError("Trip not found", 404);

@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
-import { authorizeSpot } from "@/lib/trip-auth";
 import { serializeSpot } from "@/lib/spot-serializer";
+import { logTripActivity } from "@/lib/trip-activity";
+import { resolveTripActor } from "@/lib/trip-actor";
+import { authorizeSpot } from "@/lib/trip-auth";
 import type { UpdateSpotBody } from "@/types/trip";
 
 type RouteContext = { params: Promise<{ spotId: string }> };
@@ -18,6 +20,27 @@ export async function PATCH(
     if (!access.ok) return jsonError(access.error, access.status);
 
     const body = (await request.json()) as UpdateSpotBody;
+
+    const existing = await prisma.spot.findUnique({
+      where: { id: spotId },
+      include: { trip: { include: { members: true } } },
+    });
+    if (!existing) return jsonError("Spot not found", 404);
+
+    if (body.expectedUpdatedAt) {
+      const expected = new Date(body.expectedUpdatedAt).getTime();
+      const current = existing.updatedAt.getTime();
+      if (expected !== current) {
+        return NextResponse.json(
+          {
+            error: "此景點已被其他人修改，請重新載入後再試",
+            code: "CONFLICT",
+            serverUpdatedAt: existing.updatedAt.toISOString(),
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     if (body.name !== undefined && !body.name.trim()) {
       return jsonError("name cannot be empty", 400);
@@ -76,6 +99,17 @@ export async function PATCH(
       include: { member: true },
     });
 
+    const actor = await resolveTripActor(request, existing.trip.members);
+    await logTripActivity({
+      tripId: existing.tripId,
+      memberId: actor.memberId,
+      memberName: actor.memberName,
+      action: "spot_update",
+      targetType: "spot",
+      targetId: spotId,
+      detail: updated.name,
+    });
+
     return NextResponse.json(serializeSpot(updated));
   } catch (error) {
     console.error("PATCH /api/spot/[spotId]", error);
@@ -93,7 +127,24 @@ export async function DELETE(
     const access = await authorizeSpot(request, spotId);
     if (!access.ok) return jsonError(access.error, access.status);
 
+    const spot = await prisma.spot.findUnique({
+      where: { id: spotId },
+      include: { trip: { include: { members: true } } },
+    });
+    if (!spot) return jsonError("Spot not found", 404);
+
     await prisma.spot.delete({ where: { id: spotId } });
+
+    const actor = await resolveTripActor(request, spot.trip.members);
+    await logTripActivity({
+      tripId: spot.tripId,
+      memberId: actor.memberId,
+      memberName: actor.memberName,
+      action: "spot_delete",
+      targetType: "spot",
+      targetId: spotId,
+      detail: spot.name,
+    });
 
     return NextResponse.json({ success: true, id: spotId });
   } catch (error) {

@@ -2,13 +2,17 @@ import type {
   Member,
   Spot,
   Trip,
+  TripActivityLog,
   TripExpense,
+  TripMemberPresence,
   TripSettlement,
   TripTask,
 } from "@prisma/client";
 import { serializeExpense } from "@/lib/expense-serializer";
 import { serializeSpot } from "@/lib/spot-serializer";
 import { serializeTask } from "@/lib/task-serializer";
+import { serializeActivity } from "@/lib/trip-activity";
+import { serializePresence } from "@/lib/trip-presence";
 import type { TripDto } from "@/types/trip";
 
 type TripWithRelations = Trip & {
@@ -17,6 +21,8 @@ type TripWithRelations = Trip & {
   tasks?: TripTask[];
   expenses?: (TripExpense & { paidBy?: Member | null })[];
   settlements?: TripSettlement[];
+  activities?: TripActivityLog[];
+  presences?: TripMemberPresence[];
 };
 
 export function serializeTrip(trip: TripWithRelations): TripDto {
@@ -32,6 +38,7 @@ export function serializeTrip(trip: TripWithRelations): TripDto {
     startDate: trip.startDate.toISOString(),
     endDate: trip.endDate.toISOString(),
     currency,
+    updatedAt: trip.updatedAt.toISOString(),
     spots: trip.spots.map((spot) => serializeSpot(spot)),
     members: trip.members.map((m) => ({
       id: m.id,
@@ -46,5 +53,7 @@ export function serializeTrip(trip: TripWithRelations): TripDto {
       amount: Number(s.amount),
       done: s.done,
     })),
+    activities: (trip.activities ?? []).map(serializeActivity),
+    presences: (trip.presences ?? []).map(serializePresence),
   };
 }

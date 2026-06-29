@@ -19,5 +19,6 @@ export function serializeSpot(spot: Spot & { member?: Member | null }): SpotDto 
     member: spot.member
       ? { id: spot.member.id, name: spot.member.name }
       : null,
+    updatedAt: spot.updatedAt.toISOString(),
   };
 }

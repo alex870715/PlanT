@@ -31,6 +31,14 @@ export const tripExpensePlainInclude = {
   },
 };
 
+const tripActivityInclude = {
+  activities: {
+    orderBy: { createdAt: "desc" as const },
+    take: 30,
+  },
+  presences: true,
+};
+
 /** 含記帳但不含結算（相容尚未建立 TripSettlement 表的資料庫） */
 export const tripExpenseInclude = {
   ...tripCoreInclude,
@@ -40,15 +48,21 @@ export const tripExpenseInclude = {
   },
 };
 
-/** 統一 Trip 查詢關聯，避免各 API 漏 include */
-export const tripDetailInclude = {
+/** 不含 activity/presence 表（相容舊 DB） */
+export const tripDetailBaseInclude = {
   ...tripExpenseInclude,
   settlements: true,
 };
 
+/** 統一 Trip 查詢關聯，避免各 API 漏 include */
+export const tripDetailInclude = {
+  ...tripDetailBaseInclude,
+  ...tripActivityInclude,
+};
+
 export const tripIncludeFallbacks = [
   tripDetailInclude,
-  tripExpenseInclude,
+  tripDetailBaseInclude,
   tripExpensePlainInclude,
   tripMinimalInclude,
 ] as const;

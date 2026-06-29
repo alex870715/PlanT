@@ -23,6 +23,8 @@ model Trip {
   tasks       TripTask[]
   expenses    TripExpense[]
   settlements TripSettlement[]
+  activities  TripActivityLog[]
+  presences   TripMemberPresence[]
 }
 
 model MatchRoom {
@@ -176,6 +178,45 @@ model Member {
   trip         Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
   spots        Spot[]
   paidExpenses TripExpense[]
+  activities   TripActivityLog[]
+  presences    TripMemberPresence[]
 
+  @@index([tripId])
+}
+
+model TripActivityLog {
+  id         String   @id @default(cuid())
+  tripId     String
+  memberId   String?
+  memberName String
+  action     String
+  targetType String?
+  targetId   String?
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  trip   Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  member Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([tripId, createdAt])
+}
+
+/** 出發日：團員即時狀態（到了 / 晚到 / 出發中） */
+model TripMemberPresence {
+  id          String   @id @default(cuid())
+  tripId      String
+  memberId    String
+  memberName  String
+  /** idle | on_way | arrived | late */
+  status      String   @default("idle")
+  lateMinutes Int?
+  spotId      String?
+  message     String?
+  updatedAt   DateTime @updatedAt
+
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([tripId, memberId])
   @@index([tripId])
 }

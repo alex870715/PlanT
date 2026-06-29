@@ -32,6 +32,7 @@ PlanT 是一款主打「分支式行程（主幹 Trunk＋個人支線 Sprouts）
 | **Trunk Route（主幹路線）** | 大家共用的主要行程（`isTrunk: true`） |
 | **Sprouts（個人支線）** | 各團員自己的加碼玩法（`isTrunk: false`，綁定 `memberId`） |
 | **個人支線地圖串接** | 切到某團員的支線分頁時，地圖把主幹＋該人支線依時間交錯串成 `1 → S1 → 2 → 3` 折線；別人的支線不會出現 |
+| **身份綁定** | 在團員區塊按「這是我」，操作會帶上 `x-plant-member` 並寫入操作紀錄 |
 | **Match（揪團探索）** | 多人各自滑卡投票，截止後依票數自動長出一份共同行程 |
 
 ---
@@ -64,6 +65,10 @@ PlanT 是一款主打「分支式行程（主幹 Trunk＋個人支線 Sprouts）
 | 💰 **記帳** | 多幣別記帳、分帳結算、建議轉帳打勾 |
 
 #### 行程分頁
+- **出發日模式**（旅程期間自動啟用）：
+  - 顯示今日主線＋你的個人支線路線。
+  - 每站一鍵導航（Google Maps / Kakao / Apple Maps）。
+  - **出發中 / 到了 / 晚到 N 分** 狀態回報，全團即時可見。
 - **每日時間軸**：依天分段、可拖曳排序景點（dnd-kit）。
 - **主線／個人支線分頁**：
   - **主線行程**：全團共用 Trunk。
@@ -78,7 +83,9 @@ PlanT 是一款主打「分支式行程（主幹 Trunk＋個人支線 Sprouts）
   - 有輸入 → **OpenStreetMap Nominatim** 即時搜尋（防抖、節流、快取）。
 - **OSRM 通勤估算**：沿道路估算交通時間，失敗退回直線估算。
 - **一鍵排程**：依景點順序自動排入時間。
-- **團員管理**：新增／移除旅程成員。
+- **團員管理**：新增／移除旅程成員；**綁定身份**（「這是我」）讓操作可追蹤。
+- **操作紀錄**：最近 30 筆協作動態（誰改了什麼、何時）。
+- **協作同步**：每 20 秒輪詢；他人更新時頂部提示重新載入；編輯景點支援樂觀鎖（409 衝突提示）。
 - **AI 故事書**：把行程轉成童話風格 Markdown。
 - **景點小提示**：有 AI Key 時提供在地推薦，無 Key 時用內建推薦＋Wikipedia 照片。
 
@@ -256,6 +263,8 @@ npm run db:seed:busan
 | `POST` | `/api/trip` | 建立旅程 |
 | `GET` | `/api/trip/[seedCode]` | 取得旅程 |
 | `PATCH` | `/api/trip/[seedCode]` | 更新旅程（如幣別） |
+| `GET` | `/api/trip/[seedCode]/sync?since=` | 輕量同步檢查（`updatedAt`） |
+| `POST` | `/api/trip/[seedCode]/presence` | 回報出發中／到了／晚到 |
 | `POST` | `/api/trip/[seedCode]/spot` | 新增景點 |
 | `PATCH` | `/api/trip/[seedCode]/reorder` | 重新排序 |
 | `POST` | `/api/trip/[seedCode]/auto-schedule` | 自動排程 |
@@ -320,6 +329,8 @@ npm run db:seed:busan
 | **TripTask** | 訂位／待辦 |
 | **TripTaskAttachment** | 待辦附件（收據、截圖、PDF） |
 | **TripTaskConfirmation** | 待辦團員確認 |
+| **TripActivityLog** | 操作紀錄（誰、做了什麼、何時） |
+| **TripMemberPresence** | 出發日即時狀態 |
 | **MatchRoom** / **MatchVote** | 揪團房間與投票 |
 
 ---

@@ -12,6 +12,7 @@ export type SpotDto = {
   isTrunk: boolean;
   sortOrder: number;
   memberId: string | null;
+  updatedAt: string;
   member?: { id: string; name: string } | null;
 };
 
@@ -74,6 +75,27 @@ export type TripSettlementDto = {
   done: boolean;
 };
 
+export type TripActivityDto = {
+  id: string;
+  memberId: string | null;
+  memberName: string;
+  action: string;
+  targetType: string | null;
+  targetId: string | null;
+  detail: string | null;
+  createdAt: string;
+};
+
+export type TripMemberPresenceDto = {
+  memberId: string;
+  memberName: string;
+  status: "idle" | "on_way" | "arrived" | "late";
+  lateMinutes: number | null;
+  spotId: string | null;
+  message: string | null;
+  updatedAt: string;
+};
+
 export type TripDto = {
   id: string;
   seedCode: string;
@@ -81,11 +103,14 @@ export type TripDto = {
   startDate: string;
   endDate: string;
   currency: string;
+  updatedAt: string;
   spots: SpotDto[];
   members: MemberDto[];
   tasks: TripTaskDto[];
   expenses: TripExpenseDto[];
   settlements: TripSettlementDto[];
+  activities: TripActivityDto[];
+  presences: TripMemberPresenceDto[];
 };
 
 export type CreateTripBody = {
@@ -119,6 +144,8 @@ export type UpdateSpotBody = {
   travelMode?: string | null;
   travelMinutes?: number | null;
   sortOrder?: number;
+  /** 樂觀鎖：若與伺服器 updatedAt 不一致則回 409 */
+  expectedUpdatedAt?: string;
 };
 
 export type CreateMemberBody = {

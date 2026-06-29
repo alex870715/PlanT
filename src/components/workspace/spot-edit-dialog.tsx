@@ -150,8 +150,13 @@ export function SpotEditDialog({
             previousSpot && travelMinutes !== ""
               ? Number(travelMinutes)
               : null,
+          expectedUpdatedAt: spot.updatedAt,
         }),
       });
+      if (res.status === 409) {
+        const data = await res.json();
+        throw new Error(data.error ?? "資料已被其他人修改");
+      }
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error ?? "儲存失敗");

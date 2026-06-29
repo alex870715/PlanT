@@ -96,6 +96,7 @@ export async function plantTripFromLikedCards(options: {
         isTrunk: true,
         sortOrder: s.sortOrder,
         memberId: null,
+        updatedAt: s.updatedAt.toISOString(),
       })),
       tripStartMidnight.toISOString(),
       options.tripEndMidnight.toISOString()

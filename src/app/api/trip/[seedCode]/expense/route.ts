@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { serializeExpense } from "@/lib/expense-serializer";
 import { prisma } from "@/lib/prisma";
+import { logTripActivity } from "@/lib/trip-activity";
+import { resolveTripActor } from "@/lib/trip-actor";
 import { createExpenseSchema, parseBody } from "@/lib/validation";
 
 type RouteContext = { params: Promise<{ seedCode: string }> };
@@ -60,6 +62,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
         notes: body.notes?.trim() || null,
       },
       include: { paidBy: true },
+    });
+
+    const actor = await resolveTripActor(request, trip.members);
+    await logTripActivity({
+      tripId: trip.id,
+      memberId: actor.memberId ?? body.paidByMemberId,
+      memberName: actor.memberName,
+      action: "expense_add",
+      targetType: "expense",
+      targetId: expense.id,
+      detail: body.title,
     });
 
     return NextResponse.json(serializeExpense(expense, trip.currency), {

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 import { serializeTaskAttachment } from "@/lib/task-serializer";
+import { logTripActivity } from "@/lib/trip-activity";
+import { resolveTripActor } from "@/lib/trip-actor";
 import {
   attachmentSizeError,
   isAllowedAttachmentMime,
@@ -21,7 +23,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
 
     const trip = await prisma.trip.findUnique({
       where: { seedCode },
-      select: { id: true },
+      include: { members: true },
     });
     if (!trip) return jsonError("Trip not found", 404);
 
@@ -55,6 +57,17 @@ export async function POST(request: NextRequest, context: RouteContext) {
         data,
         uploadedBy,
       },
+    });
+
+    const actor = await resolveTripActor(request, trip.members);
+    await logTripActivity({
+      tripId: trip.id,
+      memberId: actor.memberId,
+      memberName: uploadedBy ?? actor.memberName,
+      action: "task_attachment",
+      targetType: "task",
+      targetId: task.id,
+      detail: `${task.title}：${file.name}`,
     });
 
     return NextResponse.json(
