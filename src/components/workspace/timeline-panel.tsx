@@ -13,7 +13,7 @@ import {
 } from "@/lib/spot-groups";
 import { partitionSpots } from "@/lib/spots";
 import { inferTripDestination } from "@/lib/discover/spot-suggestions";
-import type { DiscoverCard } from "@/types/discover";
+import { seededFetch } from "@/lib/trip-client";
 import type { SpotDto, TripDto } from "@/types/trip";
 
 type AddSpotPayload = {
@@ -135,7 +135,9 @@ export function TimelinePanel({
   async function handleGraft(spotId: string) {
     setGraftingId(spotId);
     try {
-      const res = await fetch(`/api/spot/${spotId}/graft`, { method: "PATCH" });
+      const res = await seededFetch(`/api/spot/${spotId}/graft`, {
+        method: "PATCH",
+      });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error ?? "Graft failed");
@@ -203,15 +205,6 @@ export function TimelinePanel({
     await refreshTrip();
   }
 
-  function cardToPayload(card: DiscoverCard): AddSpotPayload {
-    return {
-      name: card.name,
-      latitude: card.latitude,
-      longitude: card.longitude,
-      notes: card.description,
-    };
-  }
-
   return (
     <>
       <div className="flex h-full min-h-[400px] flex-col rounded-xl border border-emerald-200 bg-white/90 shadow-sm">
@@ -272,9 +265,6 @@ export function TimelinePanel({
               onAddToDay={(dateKey, payload, daySpots) =>
                 handleAddSpotToDay(dateKey, payload, daySpots, true)
               }
-              onAddCardToDay={(dateKey, card, daySpots) =>
-                handleAddSpotToDay(dateKey, cardToPayload(card), daySpots, true)
-              }
             />
           </TabsContent>
 
@@ -311,9 +301,6 @@ export function TimelinePanel({
               onTripUpdate={onTripUpdate}
               onAddToDay={(dateKey, payload, daySpots) =>
                 handleAddSpotToDay(dateKey, payload, daySpots, false)
-              }
-              onAddCardToDay={(dateKey, card, daySpots) =>
-                handleAddSpotToDay(dateKey, cardToPayload(card), daySpots, false)
               }
             />
           </TabsContent>

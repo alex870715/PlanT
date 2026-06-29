@@ -387,15 +387,30 @@ export function DiscoverFlow() {
 
   async function postVote(card: DiscoverCard, direction: "left" | "right") {
     if (!isGroup || !roomCode || !votingOpen) return;
-    await fetch(`/api/match/room/${roomCode}/vote`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        cardId: card.id,
-        voterName: memberName.trim(),
-        vote: direction === "right" ? "like" : "pass",
-      }),
-    });
+    try {
+      const res = await fetch(`/api/match/room/${roomCode}/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cardId: card.id,
+          voterName: memberName.trim(),
+          vote: direction === "right" ? "like" : "pass",
+        }),
+      });
+      if (!res.ok) {
+        if (res.status === 403) {
+          await goToGroupSummary(roomCode);
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "投票未送出，請重試");
+        return;
+      }
+    } catch {
+      setError("網路不穩，投票可能未送出");
+      return;
+    }
+
     try {
       await refreshRoomDeck(roomCode);
     } catch (e) {

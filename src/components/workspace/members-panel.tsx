@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Pencil, Plus, User, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { seededFetch } from "@/lib/trip-client";
 import type { MemberDto, TripDto } from "@/types/trip";
 
 type MembersPanelProps = {
@@ -44,7 +45,7 @@ export function MembersPanel({ trip, onTripUpdate }: MembersPanelProps) {
   async function handleSaveMember(memberId: string) {
     if (!editName.trim()) return;
     try {
-      const res = await fetch(`/api/member/${memberId}`, {
+      const res = await seededFetch(`/api/member/${memberId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: editName.trim() }),
@@ -60,7 +61,7 @@ export function MembersPanel({ trip, onTripUpdate }: MembersPanelProps) {
   async function handleRemoveMember(member: MemberDto) {
     if (!confirm(`移除參與者「${member.name}」？`)) return;
     try {
-      const res = await fetch(`/api/member/${member.id}`, {
+      const res = await seededFetch(`/api/member/${member.id}`, {
         method: "DELETE",
       });
       const data = await res.json();

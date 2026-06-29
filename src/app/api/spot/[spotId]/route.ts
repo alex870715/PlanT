@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { authorizeSpot } from "@/lib/trip-auth";
 import { serializeSpot } from "@/lib/spot-serializer";
 import type { UpdateSpotBody } from "@/types/trip";
 
@@ -12,10 +13,11 @@ export async function PATCH(
 ) {
   try {
     const { spotId } = await context.params;
-    const body = (await request.json()) as UpdateSpotBody;
 
-    const spot = await prisma.spot.findUnique({ where: { id: spotId } });
-    if (!spot) return jsonError("Spot not found", 404);
+    const access = await authorizeSpot(request, spotId);
+    if (!access.ok) return jsonError(access.error, access.status);
+
+    const body = (await request.json()) as UpdateSpotBody;
 
     if (body.name !== undefined && !body.name.trim()) {
       return jsonError("name cannot be empty", 400);
@@ -82,14 +84,14 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: RouteContext
 ) {
   try {
     const { spotId } = await context.params;
 
-    const spot = await prisma.spot.findUnique({ where: { id: spotId } });
-    if (!spot) return jsonError("Spot not found", 404);
+    const access = await authorizeSpot(request, spotId);
+    if (!access.ok) return jsonError(access.error, access.status);
 
     await prisma.spot.delete({ where: { id: spotId } });
 

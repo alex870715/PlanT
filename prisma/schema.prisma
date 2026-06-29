@@ -13,6 +13,8 @@ model Trip {
   title     String
   startDate DateTime
   endDate   DateTime
+  /** ISO 4217 幣別代碼，整趟旅程共用 */
+  currency  String   @default("TWD")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -57,7 +59,7 @@ model TripTask {
   title     String
   category  String   @default("booking")
   assignee  String?
-  amount    Float?
+  amount    Decimal? @db.Decimal(12, 2)
   notes     String?
   done      Boolean  @default(false)
   sortOrder Int      @default(0)
@@ -72,7 +74,7 @@ model TripExpense {
   id               String   @id @default(cuid())
   tripId           String
   title            String
-  amount           Float
+  amount           Decimal  @db.Decimal(12, 2)
   paidByMemberId   String
   /** JSON string[] of member ids who share this expense */
   splitMemberIds   Json

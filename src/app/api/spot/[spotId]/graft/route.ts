@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { authorizeSpot } from "@/lib/trip-auth";
 
 type RouteContext = { params: Promise<{ spotId: string }> };
 
 export async function PATCH(
-  _request: NextRequest,
+  request: NextRequest,
   context: RouteContext
 ) {
   try {
     const { spotId } = await context.params;
+
+    const access = await authorizeSpot(request, spotId);
+    if (!access.ok) return jsonError(access.error, access.status);
 
     const spot = await prisma.spot.findUnique({
       where: { id: spotId },

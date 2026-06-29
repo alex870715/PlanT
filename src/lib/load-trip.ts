@@ -40,6 +40,7 @@ type CreateTripInput = {
   startDate: Date;
   endDate: Date;
   memberName: string;
+  currency?: string;
 };
 
 export async function createTripWithDefaults(
@@ -50,6 +51,7 @@ export async function createTripWithDefaults(
     title: input.title,
     startDate: input.startDate,
     endDate: input.endDate,
+    ...(input.currency ? { currency: input.currency } : {}),
     members: {
       create: { name: input.memberName },
     },

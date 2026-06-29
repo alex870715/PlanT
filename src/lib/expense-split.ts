@@ -1,3 +1,5 @@
+import { roundMoney as roundByCurrency } from "@/lib/currency";
+
 export type ExpenseForSplit = {
   id: string;
   amount: number;
@@ -21,20 +23,26 @@ export type SettlementTransfer = {
   amount: number;
 };
 
-function roundMoney(n: number): number {
-  return Math.round(n * 100) / 100;
+function makeRounder(currency: string) {
+  return (n: number) => roundByCurrency(n, currency);
 }
 
-export function perPersonShare(amount: number, participantCount: number): number {
+export function perPersonShare(
+  amount: number,
+  participantCount: number,
+  currency = "TWD"
+): number {
   if (participantCount <= 0) return 0;
-  return roundMoney(amount / participantCount);
+  return roundByCurrency(amount / participantCount, currency);
 }
 
 /** 先付的人記入 paid；參與者平分 share；balance = paid - share（正＝應收回） */
 export function computeMemberBalances(
   members: { id: string; name: string }[],
-  expenses: ExpenseForSplit[]
+  expenses: ExpenseForSplit[],
+  currency = "TWD"
 ): MemberBalance[] {
+  const roundMoney = makeRounder(currency);
   const rows = new Map(
     members.map((m) => [
       m.id,
@@ -73,8 +81,10 @@ export function computeMemberBalances(
 
 /** 簡化結算：誰該付誰多少 */
 export function suggestSettlements(
-  balances: MemberBalance[]
+  balances: MemberBalance[],
+  currency = "TWD"
 ): SettlementTransfer[] {
+  const roundMoney = makeRounder(currency);
   const debtors = balances
     .filter((b) => b.balance < -0.005)
     .map((b) => ({ ...b, remaining: roundMoney(-b.balance) }));

@@ -16,6 +16,8 @@ import {
   perPersonShare,
   suggestSettlements,
 } from "@/lib/expense-split";
+import { CURRENCIES, formatMoney } from "@/lib/currency";
+import { seededFetch } from "@/lib/trip-client";
 import type { TripDto } from "@/types/trip";
 
 type TripExpensePanelProps = {
@@ -34,6 +36,10 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
   );
   const [busyId, setBusyId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [currencySaving, setCurrencySaving] = useState(false);
+
+  const currency = trip.currency ?? "TWD";
+  const fmt = (n: number) => formatMoney(n, currency);
 
   const memberNameById = useMemo(
     () => new Map(trip.members.map((m) => [m.id, m.name])),
@@ -49,23 +55,42 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
           amount: e.amount,
           paidByMemberId: e.paidByMemberId,
           splitMemberIds: e.splitMemberIds,
-        }))
+        })),
+        currency
       ),
-    [trip.members, trip.expenses]
+    [trip.members, trip.expenses, currency]
   );
 
-  const settlements = useMemo(() => suggestSettlements(balances), [balances]);
+  const settlements = useMemo(
+    () => suggestSettlements(balances, currency),
+    [balances, currency]
+  );
 
   const totalSpent = useMemo(
-    () =>
-      Math.round(trip.expenses.reduce((sum, e) => sum + e.amount, 0) * 100) /
-      100,
+    () => trip.expenses.reduce((sum, e) => sum + e.amount, 0),
     [trip.expenses]
   );
 
   async function refreshTrip() {
     const res = await fetch(`/api/trip/${trip.seedCode}`);
     if (res.ok) onTripUpdate(await res.json());
+  }
+
+  async function changeCurrency(next: string) {
+    if (next === currency) return;
+    setCurrencySaving(true);
+    try {
+      const res = await seededFetch(`/api/trip/${trip.seedCode}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currency: next }),
+      });
+      if (res.ok) onTripUpdate(await res.json());
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setCurrencySaving(false);
+    }
   }
 
   function toggleParticipant(memberId: string) {
@@ -91,6 +116,7 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
           amount: parsed,
           paidByMemberId,
           splitMemberIds,
+          currency,
         }),
       });
       if (!res.ok) {
@@ -134,7 +160,22 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
           <Receipt className="h-4 w-4" />
           記帳 · 分帳
         </h2>
-        <span className="text-xs text-rose-800">總支出 ${totalSpent}</span>
+        <div className="flex items-center gap-2">
+          <select
+            className="h-7 rounded-md border border-rose-200 bg-white px-1.5 text-xs text-rose-900 disabled:opacity-60"
+            value={currency}
+            disabled={currencySaving}
+            onChange={(e) => void changeCurrency(e.target.value)}
+            aria-label="旅程幣別"
+          >
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code} {c.label}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-rose-800">總支出 {fmt(totalSpent)}</span>
+        </div>
       </div>
 
       <div className="mb-4 space-y-2 rounded-lg border border-rose-100 bg-white p-3">
@@ -190,7 +231,8 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
         </div>
         {amount && splitMemberIds.length > 0 && (
           <p className="text-[11px] text-rose-700">
-            每人 ${perPersonShare(Number(amount), splitMemberIds.length)}
+            每人{" "}
+            {fmt(perPersonShare(Number(amount), splitMemberIds.length, currency))}
           </p>
         )}
         <Button
@@ -220,7 +262,8 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
           {trip.expenses.map((expense) => {
             const share = perPersonShare(
               expense.amount,
-              expense.splitMemberIds.length
+              expense.splitMemberIds.length,
+              currency
             );
             const participants = expense.splitMemberIds
               .map((id) => memberNameById.get(id) ?? "?")
@@ -235,10 +278,10 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
                   <div className="min-w-0">
                     <p className="font-medium text-rose-950">{expense.title}</p>
                     <p className="mt-0.5 text-xs text-rose-800">
-                      ${expense.amount} · {expense.paidByName ?? "?"} 先付
+                      {fmt(expense.amount)} · {expense.paidByName ?? "?"} 先付
                     </p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">
-                      {participants} 平分 · 每人 ${share}
+                      {participants} 平分 · 每人 {fmt(share)}
                     </p>
                   </div>
                   <button
@@ -274,7 +317,7 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
             >
               <span className="font-medium text-rose-950">{b.memberName}</span>
               <span className="text-rose-800">
-                先付 ${b.paid} · 份額 ${b.share} ·{" "}
+                先付 {fmt(b.paid)} · 份額 {fmt(b.share)} ·{" "}
                 <span
                   className={
                     b.balance > 0
@@ -285,9 +328,9 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
                   }
                 >
                   {b.balance > 0
-                    ? `應收 $${b.balance}`
+                    ? `應收 ${fmt(b.balance)}`
                     : b.balance < 0
-                      ? `應付 $${Math.abs(b.balance)}`
+                      ? `應付 ${fmt(Math.abs(b.balance))}`
                       : "已結清"}
                 </span>
               </span>
@@ -307,7 +350,7 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
                   <ArrowRight className="h-3 w-3 shrink-0" />
                   <span className="font-medium">{t.toName}</span>
                   <span className="ml-1 font-semibold text-rose-950">
-                    ${t.amount}
+                    {fmt(t.amount)}
                   </span>
                 </li>
               ))}

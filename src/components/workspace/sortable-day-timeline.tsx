@@ -34,7 +34,6 @@ import {
 } from "@/lib/spot-groups";
 import { partitionSpots } from "@/lib/spots";
 import { TravelLegBadge } from "@/components/workspace/travel-leg-badge";
-import type { DiscoverCard } from "@/types/discover";
 import type { SpotDto, TripDto } from "@/types/trip";
 
 type AddSpotPayload = {
@@ -58,11 +57,6 @@ type SortableDayTimelineProps = {
     payload: AddSpotPayload,
     daySpots: SpotDto[]
   ) => Promise<void>;
-  onAddCardToDay?: (
-    dateKey: string,
-    card: DiscoverCard,
-    daySpots: SpotDto[]
-  ) => Promise<void>;
 };
 
 export function SortableDayTimeline({
@@ -75,7 +69,6 @@ export function SortableDayTimeline({
   graftingId,
   onTripUpdate,
   onAddToDay,
-  onAddCardToDay,
 }: SortableDayTimelineProps) {
   const [openAddDayId, setOpenAddDayId] = useState<string | null>(null);
   const [addName, setAddName] = useState("");
@@ -187,11 +180,14 @@ export function SortableDayTimeline({
     }
   }
 
-  async function submitCardToDay(group: SpotDayGroup, card: DiscoverCard) {
-    if (!onAddCardToDay) return;
+  async function submitPayloadToDay(
+    group: SpotDayGroup,
+    payload: AddSpotPayload
+  ) {
+    if (!onAddToDay) return;
     setAddingDayId(group.id);
     try {
-      await onAddCardToDay(group.dateKey, card, group.spots);
+      await onAddToDay(group.dateKey, payload, group.spots);
       setAddName("");
       setOpenAddDayId(null);
     } finally {
@@ -243,7 +239,9 @@ export function SortableDayTimeline({
             tripSpots={trip.spots}
             onAddNameChange={setAddName}
             onSubmitAdd={() => void submitAddToDay(group)}
-            onSelectSuggestion={(card) => void submitCardToDay(group, card)}
+            onSelectPayload={(payload) =>
+              void submitPayloadToDay(group, payload)
+            }
           />
         ))}
       </div>
@@ -278,7 +276,7 @@ function DroppableDayColumn({
   tripSpots,
   onAddNameChange,
   onSubmitAdd,
-  onSelectSuggestion,
+  onSelectPayload,
 }: {
   group: SpotDayGroup;
   isOver: boolean;
@@ -298,7 +296,7 @@ function DroppableDayColumn({
   tripSpots?: SpotDto[];
   onAddNameChange?: (v: string) => void;
   onSubmitAdd?: () => void;
-  onSelectSuggestion?: (card: DiscoverCard) => void;
+  onSelectPayload?: (payload: AddSpotPayload) => void;
 }) {
   const { setNodeRef, isOver: isOverDroppable } = useDroppable({
     id: group.id,
@@ -354,7 +352,7 @@ function DroppableDayColumn({
           addName={addName ?? ""}
           adding={!!adding}
           onAddNameChange={(v) => onAddNameChange?.(v)}
-          onSelectSuggestion={(card) => onSelectSuggestion?.(card)}
+          onSelectPayload={(payload) => onSelectPayload?.(payload)}
           onSubmitCustom={() => onSubmitAdd?.()}
         />
       )}

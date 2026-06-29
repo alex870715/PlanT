@@ -21,6 +21,7 @@ import {
   TRAVEL_MODES,
   type TravelModeId,
 } from "@/lib/travel";
+import { seededFetch } from "@/lib/trip-client";
 import type { SpotDto } from "@/types/trip";
 
 type SpotEditDialogProps = {
@@ -55,6 +56,10 @@ export function SpotEditDialog({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [estimating, setEstimating] = useState(false);
+  const [estimateSource, setEstimateSource] = useState<
+    "osrm" | "haversine" | null
+  >(null);
 
   useEffect(() => {
     if (!spot) return;
@@ -69,6 +74,7 @@ export function SpotEditDialog({
       spot.travelMinutes != null ? String(spot.travelMinutes) : ""
     );
     setError(null);
+    setEstimateSource(null);
   }, [spot]);
 
   useEffect(() => {
@@ -77,17 +83,44 @@ export function SpotEditDialog({
     setLongitude(String(Number(mapPickResult.lng.toFixed(6))));
   }, [mapPickResult]);
 
-  function estimateFromPrevious() {
+  async function estimateFromPrevious() {
     if (!spot || !previousSpot) return;
     const mode = (travelMode || "walk") as TravelModeId;
-    const mins = estimateTravelMinutes(
-      previousSpot.latitude,
-      previousSpot.longitude,
-      Number(latitude) || spot.latitude,
-      Number(longitude) || spot.longitude,
-      mode
-    );
-    setTravelMinutes(String(mins));
+    const toLat = Number(latitude) || spot.latitude;
+    const toLng = Number(longitude) || spot.longitude;
+
+    setEstimating(true);
+    setEstimateSource(null);
+    try {
+      const params = new URLSearchParams({
+        fromLat: String(previousSpot.latitude),
+        fromLng: String(previousSpot.longitude),
+        toLat: String(toLat),
+        toLng: String(toLng),
+        mode,
+      });
+      const res = await fetch(`/api/route?${params.toString()}`);
+      if (!res.ok) throw new Error("route failed");
+      const data = (await res.json()) as {
+        minutes: number;
+        source: "osrm" | "haversine";
+      };
+      setTravelMinutes(String(data.minutes));
+      setEstimateSource(data.source);
+    } catch {
+      // 後端不可用時，前端以直線估算退回
+      const mins = estimateTravelMinutes(
+        previousSpot.latitude,
+        previousSpot.longitude,
+        toLat,
+        toLng,
+        mode
+      );
+      setTravelMinutes(String(mins));
+      setEstimateSource("haversine");
+    } finally {
+      setEstimating(false);
+    }
   }
 
   async function handleSave() {
@@ -102,7 +135,7 @@ export function SpotEditDialog({
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/spot/${spot.id}`, {
+      const res = await seededFetch(`/api/spot/${spot.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -138,7 +171,7 @@ export function SpotEditDialog({
     setDeleting(true);
     setError(null);
     try {
-      const res = await fetch(`/api/spot/${spot.id}`, { method: "DELETE" });
+      const res = await seededFetch(`/api/spot/${spot.id}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.error ?? "刪除失敗");
@@ -231,15 +264,23 @@ export function SpotEditDialog({
                   className="h-9 text-sm"
                 />
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="mt-2 h-7 px-2 text-xs text-sky-800"
-                onClick={estimateFromPrevious}
-              >
-                依距離粗估時間
-              </Button>
+              <div className="mt-2 flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-sky-800"
+                  disabled={estimating}
+                  onClick={() => void estimateFromPrevious()}
+                >
+                  {estimating ? "計算中…" : "依路線估算時間"}
+                </Button>
+                {estimateSource && (
+                  <span className="text-[10px] text-sky-700">
+                    {estimateSource === "osrm" ? "沿道路 OSRM" : "直線估算"}
+                  </span>
+                )}
+              </div>
             </div>
           )}
 

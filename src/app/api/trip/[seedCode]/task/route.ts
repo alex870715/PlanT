@@ -9,7 +9,7 @@ function serializeTask(task: {
   title: string;
   category: string;
   assignee: string | null;
-  amount: number | null;
+  amount: unknown;
   notes: string | null;
   done: boolean;
   sortOrder: number;
@@ -19,7 +19,7 @@ function serializeTask(task: {
     title: task.title,
     category: task.category,
     assignee: task.assignee,
-    amount: task.amount,
+    amount: task.amount == null ? null : Number(task.amount),
     notes: task.notes,
     done: task.done,
     sortOrder: task.sortOrder,

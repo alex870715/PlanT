@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
 import { getDiscoverDeck } from "@/lib/discover/catalog";
 import { plantTripFromLikedCards } from "@/lib/plant-from-discover";
-import type { PlantTripFromDiscoverBody } from "@/types/discover";
+import { inferCurrencyFromDestination } from "@/lib/currency";
+import { parseBody, plantTripBodySchema } from "@/lib/validation";
+import type { DiscoverCard } from "@/types/discover";
 
 function plantTripErrorMessage(error: unknown): string {
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -22,17 +24,30 @@ function plantTripErrorMessage(error: unknown): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as PlantTripFromDiscoverBody;
-
-    if (!body.destination?.trim()) {
-      return jsonError("destination is required", 400);
-    }
-    if (!Array.isArray(body.liked) || body.liked.length === 0) {
-      return jsonError("liked must contain at least one card", 400);
-    }
+    const parsed = await parseBody(request, plantTripBodySchema);
+    if (!parsed.ok) return jsonError(parsed.error, 400);
+    const body = parsed.data;
 
     const deck = getDiscoverDeck(body.destination);
     const destLabel = deck?.destination.label ?? body.destination;
+
+    // 將通過 schema 驗證的卡片正規化為 DiscoverCard。
+    // 已知目的地時，優先以官方目錄的卡片覆寫 client 傳來的座標/內容，避免被竄改。
+    const liked: DiscoverCard[] = body.liked.map((card) => {
+      const canonical = deck?.cards.find((c) => c.id === card.id);
+      if (canonical) return canonical;
+      return {
+        id: card.id,
+        name: card.name,
+        category: card.category,
+        description: card.description,
+        popularity: card.popularity,
+        latitude: card.latitude,
+        longitude: card.longitude,
+        tags: card.tags,
+        area: card.area,
+      };
+    });
 
     let tripStartMidnight: Date;
     let tripEndMidnight: Date;
@@ -73,11 +88,12 @@ export async function POST(request: NextRequest) {
       destLabel,
       title: body.title,
       memberName: body.memberName,
+      currency: inferCurrencyFromDestination(deck?.destination.slug),
       startDate,
       endDate,
       tripStartMidnight,
       tripEndMidnight,
-      liked: body.liked,
+      liked,
     });
 
     return NextResponse.json(

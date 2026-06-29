@@ -68,7 +68,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       title: task.title,
       category: task.category,
       assignee: task.assignee,
-      amount: task.amount,
+      amount: task.amount == null ? null : Number(task.amount),
       notes: task.notes,
       done: task.done,
       sortOrder: task.sortOrder,

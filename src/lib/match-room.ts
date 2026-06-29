@@ -39,6 +39,27 @@ export type CardVoteStats = {
   likeVoters: string[];
 };
 
+export const MAX_VOTER_NAME_LENGTH = 24;
+
+/** 統一投票者顯示名稱：去頭尾空白、合併多餘空白、限制長度 */
+export function normalizeVoterName(raw: string): string {
+  return raw.trim().replace(/\s+/g, " ").slice(0, MAX_VOTER_NAME_LENGTH);
+}
+
+/** 用於去重的鍵：忽略大小寫，避免改大小寫灌票 */
+export function voterDedupKey(name: string): string {
+  return normalizeVoterName(name).toLowerCase();
+}
+
+export function isValidCardId(
+  destinationSlug: string,
+  cardId: string
+): boolean {
+  const deck = getDiscoverDeck(destinationSlug);
+  if (!deck) return false;
+  return deck.cards.some((c) => c.id === cardId);
+}
+
 export async function generateUniqueRoomCode(): Promise<string> {
   for (let attempt = 0; attempt < 12; attempt++) {
     const roomCode = generateSeedCode();
@@ -62,17 +83,27 @@ export function aggregateVoteStats(
 ): { voterCount: number; byCard: Map<string, CardVoteStats> } {
   const voters = new Set<string>();
   const byCard = new Map<string, CardVoteStats>();
+  const likeVoterKeys = new Map<string, Set<string>>();
 
   for (const v of votes) {
-    voters.add(v.voterName.trim());
+    const dedupKey = voterDedupKey(v.voterName);
+    const displayName = normalizeVoterName(v.voterName);
+    voters.add(dedupKey);
+
     let entry = byCard.get(v.cardId);
     if (!entry) {
       entry = { cardId: v.cardId, likes: 0, passes: 0, likeVoters: [] };
       byCard.set(v.cardId, entry);
+      likeVoterKeys.set(v.cardId, new Set());
     }
+    const seen = likeVoterKeys.get(v.cardId)!;
+
     if (v.vote === "like") {
-      entry.likes += 1;
-      entry.likeVoters.push(v.voterName.trim());
+      if (!seen.has(dedupKey)) {
+        seen.add(dedupKey);
+        entry.likes += 1;
+        entry.likeVoters.push(displayName);
+      }
     } else if (v.vote === "pass") {
       entry.passes += 1;
     }

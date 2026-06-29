@@ -17,6 +17,10 @@ export function serializeTrip(trip: TripWithRelations): TripDto {
     title: trip.title,
     startDate: trip.startDate.toISOString(),
     endDate: trip.endDate.toISOString(),
+    currency:
+      "currency" in trip && typeof trip.currency === "string"
+        ? trip.currency
+        : "TWD",
     spots: trip.spots.map((spot) => serializeSpot(spot)),
     members: trip.members.map((m) => ({
       id: m.id,
@@ -28,7 +32,7 @@ export function serializeTrip(trip: TripWithRelations): TripDto {
       title: t.title,
       category: t.category,
       assignee: t.assignee,
-      amount: t.amount,
+      amount: t.amount == null ? null : Number(t.amount),
       notes: t.notes,
       done: t.done,
       sortOrder: t.sortOrder,

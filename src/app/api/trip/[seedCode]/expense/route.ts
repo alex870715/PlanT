@@ -2,14 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { serializeExpense } from "@/lib/expense-serializer";
 import { prisma } from "@/lib/prisma";
+import { createExpenseSchema, parseBody } from "@/lib/validation";
 
 type RouteContext = { params: Promise<{ seedCode: string }> };
-
-function parseSplitIds(body: unknown, tripMemberIds: Set<string>): string[] {
-  if (!Array.isArray(body)) return [];
-  const ids = body.filter((id): id is string => typeof id === "string");
-  return ids.filter((id) => tripMemberIds.has(id));
-}
 
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
@@ -19,6 +14,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!isValidSeedCode(seedCode)) {
       return jsonError("Invalid seed code format", 400);
     }
+
+    const parsed = await parseBody(request, createExpenseSchema);
+    if (!parsed.ok) return jsonError(parsed.error, 400);
+    const body = parsed.data;
 
     const trip = await prisma.trip.findUnique({
       where: { seedCode },
@@ -31,20 +30,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return jsonError("請先新增團員才能記帳", 400);
     }
 
-    const body = await request.json();
-    const title = String(body.title ?? "").trim();
-    const paidByMemberId = String(body.paidByMemberId ?? "").trim();
-    const amount = Number(body.amount);
-
-    if (!title) return jsonError("title is required", 400);
-    if (!paidByMemberId || !memberIds.has(paidByMemberId)) {
+    if (!memberIds.has(body.paidByMemberId)) {
       return jsonError("請選擇有效的先付人", 400);
     }
-    if (!Number.isFinite(amount) || amount <= 0) {
-      return jsonError("金額必須大於 0", 400);
-    }
 
-    let splitMemberIds = parseSplitIds(body.splitMemberIds, memberIds);
+    let splitMemberIds = (body.splitMemberIds ?? []).filter((id) =>
+      memberIds.has(id)
+    );
     if (splitMemberIds.length === 0) {
       splitMemberIds = [...memberIds];
     }
@@ -52,11 +44,11 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const expense = await prisma.tripExpense.create({
       data: {
         tripId: trip.id,
-        title,
-        amount,
-        paidByMemberId,
+        title: body.title,
+        amount: body.amount,
+        paidByMemberId: body.paidByMemberId,
         splitMemberIds,
-        notes: body.notes ? String(body.notes).trim() : null,
+        notes: body.notes?.trim() || null,
       },
       include: { paidBy: true },
     });

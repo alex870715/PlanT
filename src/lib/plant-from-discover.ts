@@ -11,6 +11,7 @@ export async function plantTripFromLikedCards(options: {
   destLabel: string;
   title?: string;
   memberName?: string;
+  currency?: string;
   startDate: Date;
   endDate: Date;
   tripStartMidnight: Date;
@@ -21,6 +22,7 @@ export async function plantTripFromLikedCards(options: {
     destLabel,
     title,
     memberName,
+    currency,
     startDate,
     endDate,
     tripStartMidnight,
@@ -35,6 +37,7 @@ export async function plantTripFromLikedCards(options: {
     title: tripTitle,
     startDate,
     endDate,
+    ...(currency ? { currency } : {}),
     members: {
       create: { name: memberName?.trim() || "探索隊長" },
     },

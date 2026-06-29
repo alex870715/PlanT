@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { jsonError } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { authorizeMember } from "@/lib/trip-auth";
 import type { UpdateMemberBody } from "@/types/trip";
 
 type RouteContext = { params: Promise<{ memberId: string }> };
@@ -11,10 +12,11 @@ export async function PATCH(
 ) {
   try {
     const { memberId } = await context.params;
-    const body = (await request.json()) as UpdateMemberBody;
 
-    const member = await prisma.member.findUnique({ where: { id: memberId } });
-    if (!member) return jsonError("Member not found", 404);
+    const access = await authorizeMember(request, memberId);
+    if (!access.ok) return jsonError(access.error, access.status);
+
+    const body = (await request.json()) as UpdateMemberBody;
 
     if (body.name !== undefined && !body.name.trim()) {
       return jsonError("name cannot be empty", 400);
@@ -42,11 +44,14 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   context: RouteContext
 ) {
   try {
     const { memberId } = await context.params;
+
+    const access = await authorizeMember(request, memberId);
+    if (!access.ok) return jsonError(access.error, access.status);
 
     const member = await prisma.member.findUnique({
       where: { id: memberId },

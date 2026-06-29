@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="PlanT">
+  <rect width="512" height="512" fill="#059669"/>
+  <g fill="none" stroke="#f0fdf4" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 372 V224"/>
+    <path d="M256 258 C256 210 218 172 170 172 C170 220 208 258 256 258 Z" fill="#34d399" stroke="#f0fdf4"/>
+    <path d="M256 232 C256 184 294 146 342 146 C342 194 304 232 256 232 Z" fill="#a7f3d0" stroke="#f0fdf4"/>
+  </g>
+  <path d="M184 372 h144" stroke="#f0fdf4" stroke-width="26" stroke-linecap="round"/>
+</svg>

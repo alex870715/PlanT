@@ -49,6 +49,7 @@ export type TripDto = {
   title: string;
   startDate: string;
   endDate: string;
+  currency: string;
   spots: SpotDto[];
   members: MemberDto[];
   tasks: TripTaskDto[];

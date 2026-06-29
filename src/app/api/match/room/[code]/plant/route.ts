@@ -8,6 +8,7 @@ import {
 } from "@/lib/match-room";
 import { plantTripFromLikedCards } from "@/lib/plant-from-discover";
 import { getDiscoverDeck } from "@/lib/discover/catalog";
+import { inferCurrencyFromDestination } from "@/lib/currency";
 import { prisma } from "@/lib/prisma";
 
 type RouteContext = { params: Promise<{ code: string }> };
@@ -66,6 +67,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const { seedCode, trip } = await plantTripFromLikedCards({
       destLabel: room.destinationLabel,
       memberName,
+      currency: inferCurrencyFromDestination(room.destinationSlug),
       startDate,
       endDate,
       tripStartMidnight,

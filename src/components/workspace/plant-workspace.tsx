@@ -11,6 +11,7 @@ import { SpotDiscoverDialog } from "@/components/workspace/spot-discover-dialog"
 import { TimelinePanel } from "@/components/workspace/timeline-panel";
 import { TripExpensePanel } from "@/components/workspace/trip-expense-panel";
 import { TripTasksPanel } from "@/components/workspace/trip-tasks-panel";
+import { seededFetch, setActiveSeed } from "@/lib/trip-client";
 import type { SpotDto, TripDto } from "@/types/trip";
 
 type PlantWorkspaceProps = {
@@ -37,7 +38,7 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
   );
 
   async function updateSpotLocation(spotId: string, lat: number, lng: number) {
-    const res = await fetch(`/api/spot/${spotId}`, {
+    const res = await seededFetch(`/api/spot/${spotId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ latitude: lat, longitude: lng }),
@@ -74,6 +75,11 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
     } finally {
       setLoading(false);
     }
+  }, [seedCode]);
+
+  useEffect(() => {
+    setActiveSeed(seedCode);
+    return () => setActiveSeed(null);
   }, [seedCode]);
 
   useEffect(() => {

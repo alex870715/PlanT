@@ -12,7 +12,7 @@ export function serializeExpense(
   return {
     id: expense.id,
     title: expense.title,
-    amount: expense.amount,
+    amount: Number(expense.amount),
     paidByMemberId: expense.paidByMemberId,
     paidByName: expense.paidBy?.name ?? null,
     splitMemberIds: parseSplitMemberIds(expense.splitMemberIds),

@@ -3,18 +3,13 @@ import { jsonError } from "@/lib/api";
 import { createTripWithDefaults } from "@/lib/load-trip";
 import { generateUniqueSeedCode } from "@/lib/seed-code";
 import { serializeTrip } from "@/lib/trip-serializer";
-import type { CreateTripBody } from "@/types/trip";
+import { createTripSchema, parseBody } from "@/lib/validation";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as CreateTripBody;
-
-    if (!body.title?.trim()) {
-      return jsonError("title is required", 400);
-    }
-    if (!body.startDate || !body.endDate) {
-      return jsonError("startDate and endDate are required", 400);
-    }
+    const parsed = await parseBody(request, createTripSchema);
+    if (!parsed.ok) return jsonError(parsed.error, 400);
+    const body = parsed.data;
 
     const startDate = new Date(body.startDate);
     const endDate = new Date(body.endDate);
