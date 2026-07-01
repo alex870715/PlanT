@@ -45,6 +45,11 @@ export const createTripSchema = z.object({
   memberName: z.string().trim().max(40).optional(),
 });
 
+export const forkTripSchema = z.object({
+  hostName: z.string().trim().min(1).max(40),
+  title: z.string().trim().max(120).optional(),
+});
+
 export type ParseResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string };

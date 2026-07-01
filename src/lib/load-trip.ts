@@ -53,7 +53,7 @@ export async function createTripWithDefaults(
     endDate: input.endDate,
     ...(input.currency ? { currency: input.currency } : {}),
     members: {
-      create: { name: input.memberName },
+      create: { name: input.memberName, isHost: true },
     },
   };
 
@@ -75,6 +75,17 @@ export async function createTripWithDefaults(
   } catch (error) {
     if (!isPrismaSchemaMismatch(error)) throw error;
     trip = await prisma.trip.create({ data: base });
+  }
+
+  const hostMember = await prisma.member.findFirst({
+    where: { tripId: trip.id, isHost: true },
+    select: { id: true },
+  });
+  if (hostMember) {
+    await prisma.trip.update({
+      where: { id: trip.id },
+      data: { hostMemberId: hostMember.id },
+    });
   }
 
   const full = await findTripById(trip.id);

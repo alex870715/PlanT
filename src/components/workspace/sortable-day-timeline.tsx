@@ -33,6 +33,7 @@ import {
   type SpotDayGroup,
 } from "@/lib/spot-groups";
 import { partitionSpots } from "@/lib/spots";
+import { seededFetch } from "@/lib/trip-client";
 import { TravelLegBadge } from "@/components/workspace/travel-leg-badge";
 import type { SpotDto, TripDto } from "@/types/trip";
 
@@ -121,15 +122,29 @@ export function SortableDayTimeline({
     setSaving(true);
     try {
       const items = buildReorderPayload(nextGroups, trip.startDate);
-      const res = await fetch(`/api/trip/${trip.seedCode}/reorder`, {
+      const res = await seededFetch(`/api/trip/${trip.seedCode}/reorder`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isTrunk, items }),
       });
-      if (!res.ok) throw new Error("Reorder failed");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Reorder failed"
+        );
+      }
       onTripUpdate(await res.json());
     } catch (e) {
       console.error(e);
+      if (
+        e instanceof Error &&
+        (e.message.includes("加入") || e.message.includes("登入"))
+      ) {
+        alert(`${e.message}\n\n請在下方「參與人」區塊輸入名字並按「加入旅程」。`);
+        document
+          .getElementById("join-trip-form")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
       setGroups(initialGroups);
     } finally {
       setSaving(false);

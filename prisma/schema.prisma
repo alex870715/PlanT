@@ -15,6 +15,16 @@ model Trip {
   endDate   DateTime
   /** ISO 4217 幣別代碼，整趟旅程共用 */
   currency  String   @default("TWD")
+  /** scrypt hash of 4–6 digit edit PIN */
+  editPinHash    String?
+  /** 主辦人 member id */
+  hostMemberId   String?
+  /** 主辦人 User id（登入帳號） */
+  hostUserId     String?
+  /** 已驗證的主辦人 email */
+  hostEmail      String?
+  /** 建旅程後一次性設定 PIN 用（hash） */
+  setupTokenHash String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -25,6 +35,9 @@ model Trip {
   settlements TripSettlement[]
   activities  TripActivityLog[]
   presences   TripMemberPresence[]
+  accessGrants TripAccessGrant[]
+  magicTokens  TripMagicToken[]
+  hostUser     User? @relation("TripHostUser", fields: [hostUserId], references: [id], onDelete: SetNull)
 }
 
 model MatchRoom {
@@ -173,15 +186,117 @@ model Member {
   tripId    String
   name      String
   email     String?
+  emailVerifiedAt DateTime?
+  isHost          Boolean  @default(false)
+  /** 認領此團員身份的登入 User */
+  userId          String?
   createdAt DateTime @default(now())
 
   trip         Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   spots        Spot[]
   paidExpenses TripExpense[]
   activities   TripActivityLog[]
   presences    TripMemberPresence[]
+  accessGrants TripAccessGrant[]
+  magicTokens  TripMagicToken[]
+
+  @@unique([tripId, userId])
+  @@index([tripId])
+  @@index([userId])
+}
+
+// ─── NextAuth ───────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts    Account[]
+  sessions    Session[]
+  members     Member[]
+  hostedTrips Trip[] @relation("TripHostUser")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+/** PIN 或 Magic Link 驗證後發行的編輯/主辦 session */
+model TripAccessGrant {
+  id        String   @id @default(cuid())
+  tripId    String
+  memberId  String?
+  tokenHash String   @unique
+  /** editor | member | host */
+  role      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  trip   Trip    @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  member Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
 
   @@index([tripId])
+}
+
+/** Magic Link 一次性 token */
+model TripMagicToken {
+  id        String   @id @default(cuid())
+  tripId    String
+  memberId  String
+  email     String
+  tokenHash String   @unique
+  /** host_bind | member_claim */
+  purpose   String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  trip   Trip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([email])
 }
 
 model TripActivityLog {

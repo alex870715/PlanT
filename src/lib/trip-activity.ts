@@ -70,4 +70,5 @@ export const ACTIVITY_LABELS: Record<string, string> = {
   member_remove: "移除團員",
   presence_update: "更新狀態",
   currency_change: "變更幣別",
+  trip_fork: "複製旅程",
 };

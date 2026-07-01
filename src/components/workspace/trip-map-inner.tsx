@@ -23,6 +23,7 @@ import {
   type MapDayFilter,
 } from "@/lib/spot-groups";
 import { computeMapViewTarget } from "@/lib/map-view";
+import { useMapThemeColors, type MapThemeColors } from "@/lib/map-theme-colors";
 import { partitionSpots, sortSpotsByOrder } from "@/lib/spots";
 import type { SpotDto } from "@/types/trip";
 import "leaflet/dist/leaflet.css";
@@ -112,11 +113,25 @@ function MapViewSync({
   return null;
 }
 
-function createNumberedIcon(label: string, variant: "trunk" | "sprout") {
+function createNumberedIcon(
+  label: string,
+  variant: "trunk" | "sprout",
+  colors: MapThemeColors
+) {
   const styles =
     variant === "trunk"
-      ? { bg: "#059669", border: "#047857", text: "#ffffff", size: 40 }
-      : { bg: "#ecfccb", border: "#65a30d", text: "#365314", size: 34 };
+      ? {
+          bg: colors.trunk.bg,
+          border: colors.trunk.border,
+          text: colors.trunk.text,
+          size: 40,
+        }
+      : {
+          bg: colors.sprout.bg,
+          border: colors.sprout.border,
+          text: colors.sprout.text,
+          size: 34,
+        };
 
   return L.divIcon({
     className: "plant-map-marker",
@@ -244,6 +259,7 @@ export function TripMapInner({
   focusMemberId,
 }: TripMapInnerProps) {
   const focusMode = !!focusMemberId;
+  const mapColors = useMapThemeColors();
 
   // 聚焦某人：主幹＋此人支線；否則只顯示主幹（各人支線只在自己分頁出現）
   const scopedSpots = useMemo(() => {
@@ -408,9 +424,14 @@ export function TripMapInner({
 
           {routePositions.length >= 2 && (
             <Polyline
+              key={`route-${mapColors.route.all}-${mapColors.route.focus}`}
               positions={routePositions}
               pathOptions={{
-                color: focusMode ? "#65a30d" : isAllView ? "#059669" : "#10b981",
+                color: focusMode
+                  ? mapColors.route.focus
+                  : isAllView
+                    ? mapColors.route.all
+                    : mapColors.route.day,
                 weight: isAllView && !focusMode ? 4 : 5,
                 opacity: 0.85,
                 dashArray: isAllView && !focusMode ? undefined : "0",
@@ -424,9 +445,9 @@ export function TripMapInner({
               : String(index + 1);
             return (
               <Marker
-                key={spot.id}
+                key={`${spot.id}-${mapColors.trunk.bg}`}
                 position={[spot.latitude, spot.longitude]}
-                icon={createNumberedIcon(order, "trunk")}
+                icon={createNumberedIcon(order, "trunk", mapColors)}
                 zIndexOffset={1000 + index}
                 draggable={draggableSpotId === spot.id}
                 eventHandlers={{
@@ -460,9 +481,9 @@ export function TripMapInner({
               : `S${index + 1}`;
             return (
               <Marker
-                key={spot.id}
+                key={`${spot.id}-${mapColors.sprout.bg}`}
                 position={[spot.latitude, spot.longitude]}
-                icon={createNumberedIcon(label, "sprout")}
+                icon={createNumberedIcon(label, "sprout", mapColors)}
                 zIndexOffset={500 + index}
                 draggable={draggableSpotId === spot.id}
                 eventHandlers={{

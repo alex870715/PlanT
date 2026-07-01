@@ -50,7 +50,9 @@ export async function DELETE(
   try {
     const { memberId } = await context.params;
 
-    const access = await authorizeMember(request, memberId);
+    const access = await authorizeMember(request, memberId, {
+      requireHost: true,
+    });
     if (!access.ok) return jsonError(access.error, access.status);
 
     const member = await prisma.member.findUnique({

@@ -1,0 +1,190 @@
+/**
+ * 頁面配色：以 hue 驅動 Tailwind emerald/sky/amber/rose/violet 語意色。
+ * rose-* ＝記帳分帳區，色相 (--theme-h-expense) 跟各主題 brand 同步。
+ */
+
+:root,
+[data-color-theme="forest"] {
+  --theme-h-brand: 160;
+  --theme-h-info: 205;
+  --theme-h-warm: 78;
+  --theme-h-expense: 160;
+  --theme-h-violet: 285;
+  --theme-h-lime: 130;
+  --theme-h-indigo: 250;
+  --theme-c-brand: 0.12;
+  --theme-c-info: 0.1;
+  --theme-c-warm: 0.14;
+  --theme-c-expense: 0.12;
+  --theme-c-violet: 0.11;
+}
+
+[data-color-theme="ocean"] {
+  --theme-h-brand: 255;
+  --theme-h-info: 195;
+  --theme-h-warm: 45;
+  --theme-h-expense: 255;
+  --theme-h-violet: 270;
+  --theme-h-lime: 210;
+  --theme-h-indigo: 240;
+  --theme-c-brand: 0.14;
+  --theme-c-info: 0.11;
+  --theme-c-warm: 0.15;
+  --theme-c-expense: 0.14;
+}
+
+[data-color-theme="sunset"] {
+  --theme-h-brand: 45;
+  --theme-h-info: 200;
+  --theme-h-warm: 38;
+  --theme-h-expense: 45;
+  --theme-h-violet: 300;
+  --theme-h-lime: 55;
+  --theme-h-indigo: 220;
+  --theme-c-brand: 0.16;
+  --theme-c-info: 0.1;
+  --theme-c-warm: 0.14;
+  --theme-c-expense: 0.16;
+}
+
+[data-color-theme="lavender"] {
+  --theme-h-brand: 295;
+  --theme-h-info: 235;
+  --theme-h-warm: 115;
+  --theme-h-expense: 295;
+  --theme-h-violet: 275;
+  --theme-h-lime: 305;
+  --theme-h-indigo: 265;
+  --theme-c-brand: 0.13;
+  --theme-c-info: 0.1;
+  --theme-c-warm: 0.13;
+  --theme-c-expense: 0.13;
+}
+
+[data-color-theme="sakura"] {
+  --theme-h-brand: 350;
+  --theme-h-info: 210;
+  --theme-h-warm: 88;
+  --theme-h-expense: 350;
+  --theme-h-violet: 320;
+  --theme-h-lime: 340;
+  --theme-h-indigo: 280;
+  --theme-c-brand: 0.14;
+  --theme-c-info: 0.11;
+  --theme-c-warm: 0.12;
+  --theme-c-expense: 0.14;
+}
+
+[data-color-theme="midnight"] {
+  --theme-h-brand: 265;
+  --theme-h-info: 220;
+  --theme-h-warm: 55;
+  --theme-h-expense: 265;
+  --theme-h-violet: 280;
+  --theme-h-lime: 250;
+  --theme-h-indigo: 255;
+  --theme-c-brand: 0.11;
+  --theme-c-info: 0.09;
+  --theme-c-warm: 0.12;
+  --theme-c-expense: 0.11;
+}
+
+[data-color-theme="earth"] {
+  --theme-h-brand: 118;
+  --theme-h-info: 175;
+  --theme-h-warm: 48;
+  --theme-h-expense: 118;
+  --theme-h-violet: 300;
+  --theme-h-lime: 105;
+  --theme-h-indigo: 195;
+  --theme-c-brand: 0.11;
+  --theme-c-info: 0.09;
+  --theme-c-warm: 0.13;
+  --theme-c-expense: 0.11;
+}
+
+/* ── Brand (emerald-* slot) ── */
+:root {
+  --c-emerald-50: oklch(0.97 calc(var(--theme-c-brand) * 0.28) var(--theme-h-brand));
+  --c-emerald-100: oklch(0.94 calc(var(--theme-c-brand) * 0.45) var(--theme-h-brand));
+  --c-emerald-200: oklch(0.88 calc(var(--theme-c-brand) * 0.65) var(--theme-h-brand));
+  --c-emerald-300: oklch(0.78 calc(var(--theme-c-brand) * 0.85) var(--theme-h-brand));
+  --c-emerald-400: oklch(0.68 var(--theme-c-brand) var(--theme-h-brand));
+  --c-emerald-500: oklch(0.58 var(--theme-c-brand) var(--theme-h-brand));
+  --c-emerald-600: oklch(0.52 var(--theme-c-brand) var(--theme-h-brand));
+  --c-emerald-700: oklch(0.44 calc(var(--theme-c-brand) * 0.95) var(--theme-h-brand));
+  --c-emerald-800: oklch(0.36 calc(var(--theme-c-brand) * 0.85) var(--theme-h-brand));
+  --c-emerald-900: oklch(0.28 calc(var(--theme-c-brand) * 0.75) var(--theme-h-brand));
+  --c-emerald-950: oklch(0.22 calc(var(--theme-c-brand) * 0.65) var(--theme-h-brand));
+
+  --c-sky-50: oklch(0.97 calc(var(--theme-c-info) * 0.25) var(--theme-h-info));
+  --c-sky-100: oklch(0.94 calc(var(--theme-c-info) * 0.4) var(--theme-h-info));
+  --c-sky-200: oklch(0.88 calc(var(--theme-c-info) * 0.6) var(--theme-h-info));
+  --c-sky-300: oklch(0.78 calc(var(--theme-c-info) * 0.8) var(--theme-h-info));
+  --c-sky-400: oklch(0.68 var(--theme-c-info) var(--theme-h-info));
+  --c-sky-500: oklch(0.58 var(--theme-c-info) var(--theme-h-info));
+  --c-sky-600: oklch(0.52 var(--theme-c-info) var(--theme-h-info));
+  --c-sky-700: oklch(0.44 calc(var(--theme-c-info) * 0.95) var(--theme-h-info));
+  --c-sky-800: oklch(0.36 calc(var(--theme-c-info) * 0.85) var(--theme-h-info));
+  --c-sky-900: oklch(0.28 calc(var(--theme-c-info) * 0.75) var(--theme-h-info));
+  --c-sky-950: oklch(0.22 calc(var(--theme-c-info) * 0.65) var(--theme-h-info));
+
+  --c-amber-50: oklch(0.97 calc(var(--theme-c-warm) * 0.28) var(--theme-h-warm));
+  --c-amber-100: oklch(0.94 calc(var(--theme-c-warm) * 0.45) var(--theme-h-warm));
+  --c-amber-200: oklch(0.88 calc(var(--theme-c-warm) * 0.65) var(--theme-h-warm));
+  --c-amber-300: oklch(0.78 calc(var(--theme-c-warm) * 0.85) var(--theme-h-warm));
+  --c-amber-400: oklch(0.72 var(--theme-c-warm) var(--theme-h-warm));
+  --c-amber-500: oklch(0.62 var(--theme-c-warm) var(--theme-h-warm));
+  --c-amber-600: oklch(0.54 calc(var(--theme-c-warm) * 0.95) var(--theme-h-warm));
+  --c-amber-700: oklch(0.46 calc(var(--theme-c-warm) * 0.9) var(--theme-h-warm));
+  --c-amber-800: oklch(0.38 calc(var(--theme-c-warm) * 0.85) var(--theme-h-warm));
+  --c-amber-900: oklch(0.3 calc(var(--theme-c-warm) * 0.75) var(--theme-h-warm));
+  --c-amber-950: oklch(0.24 calc(var(--theme-c-warm) * 0.65) var(--theme-h-warm));
+
+  --c-rose-50: oklch(0.97 calc(var(--theme-c-expense) * 0.25) var(--theme-h-expense));
+  --c-rose-100: oklch(0.94 calc(var(--theme-c-expense) * 0.4) var(--theme-h-expense));
+  --c-rose-200: oklch(0.88 calc(var(--theme-c-expense) * 0.6) var(--theme-h-expense));
+  --c-rose-300: oklch(0.78 calc(var(--theme-c-expense) * 0.8) var(--theme-h-expense));
+  --c-rose-400: oklch(0.68 var(--theme-c-expense) var(--theme-h-expense));
+  --c-rose-500: oklch(0.58 var(--theme-c-expense) var(--theme-h-expense));
+  --c-rose-600: oklch(0.52 var(--theme-c-expense) var(--theme-h-expense));
+  --c-rose-700: oklch(0.44 calc(var(--theme-c-expense) * 0.95) var(--theme-h-expense));
+  --c-rose-800: oklch(0.36 calc(var(--theme-c-expense) * 0.85) var(--theme-h-expense));
+  --c-rose-900: oklch(0.28 calc(var(--theme-c-expense) * 0.75) var(--theme-h-expense));
+  --c-rose-950: oklch(0.22 calc(var(--theme-c-expense) * 0.65) var(--theme-h-expense));
+
+  /* 記帳區塊語意別名（rose 與 brand 同步色相） */
+  --c-red-50: var(--c-rose-50);
+  --c-red-500: var(--c-rose-500);
+  --c-red-600: var(--c-rose-600);
+  --c-red-700: var(--c-rose-700);
+
+  --c-violet-50: oklch(0.97 calc(var(--theme-c-violet) * 0.25) var(--theme-h-violet));
+  --c-violet-100: oklch(0.94 calc(var(--theme-c-violet) * 0.4) var(--theme-h-violet));
+  --c-violet-200: oklch(0.88 calc(var(--theme-c-violet) * 0.6) var(--theme-h-violet));
+  --c-violet-300: oklch(0.78 calc(var(--theme-c-violet) * 0.8) var(--theme-h-violet));
+  --c-violet-400: oklch(0.68 var(--theme-c-violet) var(--theme-h-violet));
+  --c-violet-500: oklch(0.58 var(--theme-c-violet) var(--theme-h-violet));
+  --c-violet-600: oklch(0.52 var(--theme-c-violet) var(--theme-h-violet));
+  --c-violet-700: oklch(0.44 calc(var(--theme-c-violet) * 0.95) var(--theme-h-violet));
+  --c-violet-800: oklch(0.36 calc(var(--theme-c-violet) * 0.85) var(--theme-h-violet));
+  --c-violet-900: oklch(0.28 calc(var(--theme-c-violet) * 0.75) var(--theme-h-violet));
+  --c-violet-950: oklch(0.22 calc(var(--theme-c-violet) * 0.65) var(--theme-h-violet));
+
+  --c-lime-50: oklch(0.97 calc(var(--theme-c-brand) * 0.3) var(--theme-h-lime));
+  --c-lime-200: oklch(0.9 calc(var(--theme-c-brand) * 0.55) var(--theme-h-lime));
+  --c-lime-600: oklch(0.58 calc(var(--theme-c-brand) * 0.95) var(--theme-h-lime));
+
+  --c-indigo-50: oklch(0.96 calc(var(--theme-c-info) * 0.22) var(--theme-h-indigo));
+
+  /* 地圖標記／路線（Leaflet 讀取） */
+  --map-trunk-bg: var(--c-emerald-600);
+  --map-trunk-border: var(--c-emerald-700);
+  --map-trunk-text: #ffffff;
+  --map-sprout-bg: var(--c-lime-50);
+  --map-sprout-border: var(--c-lime-600);
+  --map-sprout-text: var(--c-emerald-950);
+  --map-route-all: var(--c-emerald-600);
+  --map-route-day: var(--c-emerald-500);
+  --map-route-focus: var(--c-lime-600);
+}

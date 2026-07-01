@@ -139,7 +139,7 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
 
     setAdding(true);
     try {
-      const res = await fetch(`/api/trip/${trip.seedCode}/expense`, {
+      const res = await seededFetch(`/api/trip/${trip.seedCode}/expense`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -176,7 +176,7 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
     const key = settlementKey(fromId, toId);
     setSettleBusy(key);
     try {
-      const res = await fetch(`/api/trip/${trip.seedCode}/settlement`, {
+      const res = await seededFetch(`/api/trip/${trip.seedCode}/settlement`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -197,7 +197,7 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
   async function removeExpense(expenseId: string) {
     setBusyId(expenseId);
     try {
-      await fetch(`/api/trip/${trip.seedCode}/expense/${expenseId}`, {
+      await seededFetch(`/api/trip/${trip.seedCode}/expense/${expenseId}`, {
         method: "DELETE",
       });
       await refreshTrip();
@@ -392,7 +392,7 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
                     type="button"
                     onClick={() => void removeExpense(expense.id)}
                     disabled={busyId === expense.id}
-                    className="shrink-0 rounded p-1 text-muted-foreground hover:bg-red-50 hover:text-red-600"
+                    className="shrink-0 rounded p-1 text-muted-foreground hover:bg-rose-50 hover:text-rose-600"
                     aria-label="刪除"
                   >
                     {busyId === expense.id ? (
@@ -425,10 +425,10 @@ export function TripExpensePanel({ trip, onTripUpdate }: TripExpensePanelProps) 
                 <span
                   className={
                     b.balance > 0
-                      ? "font-semibold text-emerald-700"
-                      : b.balance < 0
-                        ? "font-semibold text-red-600"
-                        : ""
+                        ? "font-semibold text-emerald-700"
+                        : b.balance < 0
+                          ? "font-semibold text-rose-600"
+                          : ""
                   }
                 >
                   {b.balance > 0

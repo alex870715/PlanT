@@ -8,6 +8,7 @@ import {
   attachmentSizeError,
   isAllowedAttachmentMime,
 } from "@/lib/task-attachment";
+import { authorizeTripBySeedCode } from "@/lib/trip-auth";
 
 type RouteContext = {
   params: Promise<{ seedCode: string; taskId: string }>;
@@ -20,6 +21,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!isValidSeedCode(seedCode)) {
       return jsonError("Invalid seed code format", 400);
     }
+
+    const auth = await authorizeTripBySeedCode(request, seedCode);
+    if (!auth.ok) return jsonError(auth.error, auth.status);
 
     const trip = await prisma.trip.findUnique({
       where: { seedCode },

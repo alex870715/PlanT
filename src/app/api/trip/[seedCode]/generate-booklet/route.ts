@@ -3,6 +3,7 @@ import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { getAiCredentialsFromRequest } from "@/lib/ai-credentials";
 import { generateFairyTaleBooklet } from "@/lib/openai";
 import { prisma } from "@/lib/prisma";
+import { authorizeTripBySeedCode } from "@/lib/trip-auth";
 
 type RouteContext = { params: Promise<{ seedCode: string }> };
 
@@ -73,6 +74,9 @@ export async function POST(
     if (!isValidSeedCode(seedCode)) {
       return jsonError("Invalid seed code format", 400);
     }
+
+    const auth = await authorizeTripBySeedCode(request, seedCode);
+    if (!auth.ok) return jsonError(auth.error, auth.status);
 
     const trip = await prisma.trip.findUnique({
       where: { seedCode },

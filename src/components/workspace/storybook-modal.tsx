@@ -3,8 +3,8 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { BookOpen, Loader2 } from "lucide-react";
-import { plantAiFetch } from "@/lib/ai-fetch";
-import { hasConfiguredAi } from "@/lib/client-settings";
+import { aiRequestHeaders, hasConfiguredAi } from "@/lib/client-settings";
+import { seededFetch } from "@/lib/trip-client";
 import { AiSettingsDialog } from "@/components/settings/ai-settings-dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,8 +30,9 @@ export function StorybookModal({ seedCode }: StorybookModalProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await plantAiFetch(`/api/trip/${seedCode}/generate-booklet`, {
+      const res = await seededFetch(`/api/trip/${seedCode}/generate-booklet`, {
         method: "POST",
+        headers: aiRequestHeaders(),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Generation failed");

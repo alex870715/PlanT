@@ -21,9 +21,11 @@
     "db:seed:fukuoka": "npx tsx prisma/seed-fukuoka.ts",
     "db:seed:busan": "npx tsx prisma/seed-busan-demo.ts",
     "push:github": "bash scripts/push-to-github.sh",
+    "publish": "bash scripts/publish.sh",
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.2",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -36,6 +38,7 @@
     "leaflet": "^1.9.4",
     "lucide-react": "^0.511.0",
     "next": "^15.3.3",
+    "next-auth": "^4.24.14",
     "openai": "^4.104.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

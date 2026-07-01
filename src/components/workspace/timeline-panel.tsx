@@ -130,7 +130,7 @@ export function TimelinePanel({
     setScheduling(true);
     setScheduleMsg(null);
     try {
-      const res = await fetch(`/api/trip/${trip.seedCode}/auto-schedule`, {
+      const res = await seededFetch(`/api/trip/${trip.seedCode}/auto-schedule`, {
         method: "POST",
       });
       const data = await res.json();
@@ -193,7 +193,7 @@ export function TimelinePanel({
   ) {
     const member = trip.members.find((m) => m.id === sproutMemberId);
     const fallback = defaultCoordsForNewSpot(daySpots);
-    const res = await fetch(`/api/trip/${trip.seedCode}/spot`, {
+    const res = await seededFetch(`/api/trip/${trip.seedCode}/spot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

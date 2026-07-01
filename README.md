@@ -28,11 +28,13 @@ PlanT 是一款主打「分支式行程（主幹 Trunk＋個人支線 Sprouts）
 
 | 名詞 | 說明 |
 |------|------|
-| **Seed Code（種子碼）** | 每個旅程的 6 碼加入代碼，分享給朋友即可一起查看／協作 |
+| **Seed Code（種子碼）** | 每個旅程的 6 碼代碼；有 Seed 即可**檢視**行程 |
 | **Trunk Route（主幹路線）** | 大家共用的主要行程（`isTrunk: true`） |
 | **Sprouts（個人支線）** | 各團員自己的加碼玩法（`isTrunk: false`，綁定 `memberId`） |
-| **個人支線地圖串接** | 切到某團員的支線分頁時，地圖把主幹＋該人支線依時間交錯串成 `1 → S1 → 2 → 3` 折線；別人的支線不會出現 |
-| **身份綁定** | 在團員區塊按「這是我」，操作會帶上 `x-plant-member` 並寫入操作紀錄 |
+| **個人支線地圖串接** | 切到某團員的支線分頁時，地圖把主幹＋該人支線依時間交錯串成 `1 → S1 → 2 → 3` 折線 |
+| **登入與加入** | NextAuth（Google / Email 魔法連結）登入後，在參與人區輸入名字**加入旅程**即可編輯 |
+| **主辦人** | 建立或複製旅程者為主辦；可分享 Seed、移除團員 |
+| **複製成我的旅程** | 從 Demo Seed 複製主線＋訂位待辦，產生新 Seed，不含原 NPC 團員 |
 | **Match（揪團探索）** | 多人各自滑卡投票，截止後依票數自動長出一份共同行程 |
 
 ---
@@ -83,7 +85,9 @@ PlanT 是一款主打「分支式行程（主幹 Trunk＋個人支線 Sprouts）
   - 有輸入 → **OpenStreetMap Nominatim** 即時搜尋（防抖、節流、快取）。
 - **OSRM 通勤估算**：沿道路估算交通時間，失敗退回直線估算。
 - **一鍵排程**：依景點順序自動排入時間。
-- **團員管理**：新增／移除旅程成員；**綁定身份**（「這是我」）讓操作可追蹤。
+- **團員管理**：登入後**加入旅程**（自訂名字）；主辦人可移除團員、新增規劃用 NPC 名稱。
+- **複製成我的旅程**：從範例 Seed 一鍵複製主線與訂位待辦，你成為主辦人。
+- **頁面配色**：左上角 7 組預設主題（森綠／海藍／夕照等），含地圖標記同步換色。
 - **操作紀錄**：最近 30 筆協作動態（誰改了什麼、何時）。
 - **協作同步**：每 20 秒輪詢；他人更新時頂部提示重新載入；編輯景點支援樂觀鎖（409 衝突提示）。
 - **AI 故事書**：把行程轉成童話風格 Markdown。
@@ -93,7 +97,7 @@ PlanT 是一款主打「分支式行程（主幹 Trunk＋個人支線 Sprouts）
 - 每筆待辦可 **展開／收合**。
 - **上傳收據／截圖**（JPG、PNG、WebP、GIF、PDF；圖片自動壓縮）。
 - **團員確認**：各團員可打勾表示已看過訂位資訊／收據；全員確認後顯示提示。
-- 備註欄（訂位時間、人數、確認碼等）、負責人、完成勾選。
+- 備註欄（訂位時間、人數、確認碼等）、**負責人下拉選單**（從參與人選）、完成勾選。
 
 #### 記帳分帳分頁
 - **多幣別**：TWD、JPY、KRW、USD、EUR、HKD、CNY、THB、SGD；依目的地自動帶入預設幣別。
@@ -102,8 +106,21 @@ PlanT 是一款主打「分支式行程（主幹 Trunk＋個人支線 Sprouts）
 - 記錄「誰先付、誰參與平分」，自動計算餘額與**最少筆數建議轉帳**。
 - **建議轉帳可打勾**：轉完帳標記完成，金額變動時自動取消勾選提醒重算。
 
+### 帳號與權限
+
+| 狀態 | 能做什麼 |
+|------|----------|
+| 只有 Seed | 僅檢視 |
+| 已登入，未加入 | 僅檢視；可「複製成我的旅程」 |
+| 已登入＋已加入 | 編輯行程、訂位、記帳 |
+| 主辦人 | 上述全部＋移除團員、改幣別 |
+
+登入方式：**Google**（需設定 OAuth）或 **Email 魔法連結**（Resend）。
+
 ### 安全性
-- 修改／刪除景點與團員的 API 驗證 `x-plant-seed` 標頭。
+- 編輯 API 需 NextAuth session ＋ 已加入該旅程的 Member。
+- 主辦人專用操作（移除團員等）需 `host` 角色。
+- 請求需帶 `x-plant-seed` 標頭（client 自動附加）。
 - 高風險端點以 **zod** 做輸入驗證。
 
 ---
@@ -111,8 +128,10 @@ PlanT 是一款主打「分支式行程（主幹 Trunk＋個人支線 Sprouts）
 ## 技術棧
 
 - **Next.js 15**（App Router）+ TypeScript
-- **Tailwind CSS 4** + shadcn/ui（emerald 主題）
+- **Tailwind CSS 4** + shadcn/ui（7 組可切換主題）
+- **NextAuth v4** + Prisma Adapter（Google / Email）
 - **Prisma** + PostgreSQL
+- **Resend**：Email 魔法連結
 - **Leaflet / react-leaflet**：互動地圖
 - **dnd-kit**：拖曳排序
 - **OpenAI**：故事書與景點推薦
@@ -137,10 +156,24 @@ npm install
 
 ```env
 DATABASE_URL="postgresql://YOUR_MAC_USERNAME@localhost:5432/plant?schema=public"
+
+# NextAuth（必填）
+AUTH_SECRET=""                    # openssl rand -base64 32
+NEXTAUTH_URL="http://localhost:3000"
+
+# Email 登入（Resend）
+RESEND_API_KEY=""
+EMAIL_FROM="PlanT <onboarding@resend.dev>"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+
+# Google 登入（選填）
+AUTH_GOOGLE_ID=""
+AUTH_GOOGLE_SECRET=""
+
 OPENAI_API_KEY=""
 ```
 
-> 在 App 內開啟 **AI 設定** 填入 API Key；金鑰只存在瀏覽器。無 Key 時景點提示使用內建推薦＋Wikipedia 照片。
+> 完整欄位見 `.env.example`。Resend 未驗證網域時，沙盒模式只能寄到註冊 Email；開發環境連結會印在終端機。
 
 ### 3. 啟動 PostgreSQL
 
@@ -187,7 +220,8 @@ npm run dev
 | `npm run db:start` / `db:stop` | 啟動／停止本機 Postgres |
 | `npm run db:seed:fukuoka` | 匯入福岡示範資料 |
 | `npm run db:seed:busan` | 匯入釜山 10 人範例（Seed `000000`） |
-| `npm run push:github` | 同步推送到 GitHub |
+| `npm run push:github` | 同步推送到 [GitHub PlanT](https://github.com/alex870715/PlanT) |
+| `npm run publish` | lint → test → build →（可選）DB migrate → push GitHub |
 
 ---
 
@@ -202,16 +236,18 @@ npm run dev
 2. 朋友 **加入房間** 各自滑卡投票。
 3. 主辦人可在滑卡或摘要頁 **提前截止投票** → 建立旅程。
 
-### C. 工作區協作（行程分頁）
-1. 用 **Seed Code** 開啟旅程。
-2. 在團員區塊 **按「這是我」** 綁定身份。
-3. 旅程期間使用 **出發日模式**：今日路線、一鍵導航、回報到了／晚到。
-4. **主線行程** / **個人支線** 分頁管理景點；支線分頁右側地圖串接 `1→S1→2→3`。
+### C. 工作區協作
+1. 用 **Seed Code** 開啟旅程（Demo：`000000`）。
+2. **登入** → 輸入名字 **加入旅程**（或 **複製成我的旅程** 當主辦）。
+3. 分享 Seed 連結，朋友登入後同樣加入。
+4. 旅程期間使用 **出發日模式**；**主線／個人支線** 分頁管理景點。
+5. 左上角 **頁面設定** 可切換 7 組配色（含地圖標記）。
 
 ### D. 訂位清單（訂位分頁）
-1. 確認已在上方團員區 **綁定身份**。
+1. 確認已 **加入旅程**。
 2. 展開某一筆 → **上傳** 訂位確認信、收據或截圖。
-3. 各團員看過後點自己名字 **打勾確認**。
+3. **負責人** 從參與人下拉選單指定。
+4. 各團員看過後點自己名字 **打勾確認**。
 
 ### E. 記帳分帳（記帳分頁）
 1. 右上選旅程 **基準幣別**。
@@ -249,6 +285,12 @@ npm run db:seed:busan
 | 變數 | 必填 | 說明 |
 |------|------|------|
 | `DATABASE_URL` | ✅ | PostgreSQL 連線字串 |
+| `AUTH_SECRET` | ✅ | NextAuth 簽章（`openssl rand -base64 32`） |
+| `NEXTAUTH_URL` | ✅ | 本站 URL（本機 `http://localhost:3000`） |
+| `NEXT_PUBLIC_APP_URL` | 建議 | 對外連結基底（Email 回跳） |
+| `RESEND_API_KEY` | Email 登入 | Resend API Key |
+| `EMAIL_FROM` | Email 登入 | 寄件者；未驗證網域用 `PlanT <onboarding@resend.dev>` |
+| `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET` | 選填 | Google OAuth |
 | `OPENAI_API_KEY` | — | 伺服器端 OpenAI（一般用 App 內 AI 設定） |
 | `OSRM_BASE_URL` | — | 自架 OSRM；預設 `https://router.project-osrm.org` |
 | `NEXT_PUBLIC_BASE_PATH` | — | 部署在子路徑時設定 |
@@ -260,10 +302,13 @@ npm run db:seed:busan
 ### 旅程
 | Method | Path | 說明 |
 |--------|------|------|
-| `POST` | `/api/trip` | 建立旅程 |
+| `POST` | `/api/trip` | 建立旅程（登入者自動為主辦） |
 | `GET` | `/api/trip/[seedCode]` | 取得旅程 |
 | `PATCH` | `/api/trip/[seedCode]` | 更新旅程（如幣別） |
-| `GET` | `/api/trip/[seedCode]/sync?since=` | 輕量同步檢查（`updatedAt`） |
+| `POST` | `/api/trip/[seedCode]/join` | 登入後加入旅程 |
+| `POST` | `/api/trip/[seedCode]/fork` | 複製成我的旅程 |
+| `GET` | `/api/trip/[seedCode]/auth/status` | 登入／加入狀態 |
+| `GET` | `/api/trip/[seedCode]/sync?since=` | 輕量同步檢查 |
 | `POST` | `/api/trip/[seedCode]/presence` | 回報出發中／到了／晚到 |
 | `POST` | `/api/trip/[seedCode]/spot` | 新增景點 |
 | `PATCH` | `/api/trip/[seedCode]/reorder` | 重新排序 |
@@ -321,9 +366,10 @@ npm run db:seed:busan
 
 | Model | 說明 |
 |-------|------|
-| **Trip** | 旅程（`seedCode`、`currency`、起訖日） |
+| **Trip** | 旅程（`seedCode`、`currency`、`hostUserId`…） |
+| **Member** | 團員（`userId` 綁定登入帳號、`isHost`） |
+| **User** / **Session** / **Account** | NextAuth 使用者與 session |
 | **Spot** | 景點（座標、`isTrunk`、`memberId`、`scheduledAt`、交通欄位） |
-| **Member** | 團員 |
 | **TripExpense** | 花費（`amount`、`currency`、`exchangeRate`、先付人、參與者） |
 | **TripSettlement** | 建議轉帳完成狀態 |
 | **TripTask** | 訂位／待辦 |
@@ -349,7 +395,25 @@ GitHub Actions（`.github/workflows/ci.yml`）：`lint → typecheck → test �
 
 ## PWA
 
-Web App Manifest + 圖示，可「加入主畫面」安裝，主題色 `#059669`。
+Web App Manifest + 圖示，可「加入主畫面」安裝；主題色隨頁面配色設定變化。
+
+---
+
+## 發布到 GitHub
+
+本 repo 獨立於 monorepo，使用 rsync 同步：
+
+```bash
+npm run publish -- "feat: 說明本次變更"
+```
+
+或僅推送：
+
+```bash
+npm run push:github -- "docs: update README"
+```
+
+Cursor 可使用 skill **plant-publish**（`.cursor/skills/plant-publish/SKILL.md`）自動執行完整流程。
 
 ---
 
@@ -359,7 +423,15 @@ Web App Manifest + 圖示，可「加入主畫面」安裝，主題色 `#059669`
 [Neon](https://neon.tech) / Supabase / Vercel Postgres，取得 `DATABASE_URL`（Neon 建議用 pooled 連線）。
 
 ### 2. Vercel 環境變數
-Settings → Environment Variables → `DATABASE_URL` → Redeploy。
+Settings → Environment Variables：
+
+- `DATABASE_URL`
+- `AUTH_SECRET`
+- `NEXTAUTH_URL`（正式網域，如 `https://your-app.vercel.app`）
+- `NEXT_PUBLIC_APP_URL`（同上）
+- （選填）`RESEND_API_KEY`、`EMAIL_FROM`、`AUTH_GOOGLE_ID`、`AUTH_GOOGLE_SECRET`
+
+→ Redeploy
 
 ### 3. 套用 schema
 

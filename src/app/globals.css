@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./color-themes.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -27,28 +28,99 @@
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-emerald-50: var(--c-emerald-50);
+  --color-emerald-100: var(--c-emerald-100);
+  --color-emerald-200: var(--c-emerald-200);
+  --color-emerald-300: var(--c-emerald-300);
+  --color-emerald-400: var(--c-emerald-400);
+  --color-emerald-500: var(--c-emerald-500);
+  --color-emerald-600: var(--c-emerald-600);
+  --color-emerald-700: var(--c-emerald-700);
+  --color-emerald-800: var(--c-emerald-800);
+  --color-emerald-900: var(--c-emerald-900);
+  --color-emerald-950: var(--c-emerald-950);
+
+  --color-sky-50: var(--c-sky-50);
+  --color-sky-100: var(--c-sky-100);
+  --color-sky-200: var(--c-sky-200);
+  --color-sky-300: var(--c-sky-300);
+  --color-sky-400: var(--c-sky-400);
+  --color-sky-500: var(--c-sky-500);
+  --color-sky-600: var(--c-sky-600);
+  --color-sky-700: var(--c-sky-700);
+  --color-sky-800: var(--c-sky-800);
+  --color-sky-900: var(--c-sky-900);
+  --color-sky-950: var(--c-sky-950);
+
+  --color-amber-50: var(--c-amber-50);
+  --color-amber-100: var(--c-amber-100);
+  --color-amber-200: var(--c-amber-200);
+  --color-amber-300: var(--c-amber-300);
+  --color-amber-400: var(--c-amber-400);
+  --color-amber-500: var(--c-amber-500);
+  --color-amber-600: var(--c-amber-600);
+  --color-amber-700: var(--c-amber-700);
+  --color-amber-800: var(--c-amber-800);
+  --color-amber-900: var(--c-amber-900);
+  --color-amber-950: var(--c-amber-950);
+
+  --color-rose-50: var(--c-rose-50);
+  --color-rose-100: var(--c-rose-100);
+  --color-rose-200: var(--c-rose-200);
+  --color-rose-300: var(--c-rose-300);
+  --color-rose-400: var(--c-rose-400);
+  --color-rose-500: var(--c-rose-500);
+  --color-rose-600: var(--c-rose-600);
+  --color-rose-700: var(--c-rose-700);
+  --color-rose-800: var(--c-rose-800);
+  --color-rose-900: var(--c-rose-900);
+  --color-rose-950: var(--c-rose-950);
+
+  --color-violet-50: var(--c-violet-50);
+  --color-violet-100: var(--c-violet-100);
+  --color-violet-200: var(--c-violet-200);
+  --color-violet-300: var(--c-violet-300);
+  --color-violet-400: var(--c-violet-400);
+  --color-violet-500: var(--c-violet-500);
+  --color-violet-600: var(--c-violet-600);
+  --color-violet-700: var(--c-violet-700);
+  --color-violet-800: var(--c-violet-800);
+  --color-violet-900: var(--c-violet-900);
+  --color-violet-950: var(--c-violet-950);
+
+  --color-lime-50: var(--c-lime-50);
+  --color-lime-200: var(--c-lime-200);
+  --color-lime-600: var(--c-lime-600);
+
+  --color-indigo-50: var(--c-indigo-50);
+
+  --color-red-50: var(--c-red-50);
+  --color-red-500: var(--c-red-500);
+  --color-red-600: var(--c-red-600);
+  --color-red-700: var(--c-red-700);
 }
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(0.99 0.01 155);
-  --foreground: oklch(0.22 0.04 160);
-  --card: oklch(1 0.005 150);
-  --card-foreground: oklch(0.22 0.04 160);
-  --popover: oklch(1 0.005 150);
-  --popover-foreground: oklch(0.22 0.04 160);
-  --primary: oklch(0.52 0.14 160);
-  --primary-foreground: oklch(0.99 0.01 155);
-  --secondary: oklch(0.94 0.04 155);
-  --secondary-foreground: oklch(0.28 0.06 160);
-  --muted: oklch(0.95 0.02 155);
-  --muted-foreground: oklch(0.48 0.04 160);
-  --accent: oklch(0.92 0.06 150);
-  --accent-foreground: oklch(0.28 0.06 160);
+  --background: oklch(0.99 calc(var(--theme-c-brand) * 0.08) var(--theme-h-brand));
+  --foreground: oklch(0.22 calc(var(--theme-c-brand) * 0.35) var(--theme-h-brand));
+  --card: oklch(1 calc(var(--theme-c-brand) * 0.02) var(--theme-h-brand));
+  --card-foreground: oklch(0.22 calc(var(--theme-c-brand) * 0.35) var(--theme-h-brand));
+  --popover: oklch(1 calc(var(--theme-c-brand) * 0.02) var(--theme-h-brand));
+  --popover-foreground: oklch(0.22 calc(var(--theme-c-brand) * 0.35) var(--theme-h-brand));
+  --primary: oklch(0.52 var(--theme-c-brand) var(--theme-h-brand));
+  --primary-foreground: oklch(0.99 calc(var(--theme-c-brand) * 0.08) var(--theme-h-brand));
+  --secondary: oklch(0.94 calc(var(--theme-c-brand) * 0.35) var(--theme-h-brand));
+  --secondary-foreground: oklch(0.28 calc(var(--theme-c-brand) * 0.5) var(--theme-h-brand));
+  --muted: oklch(0.95 calc(var(--theme-c-brand) * 0.18) var(--theme-h-brand));
+  --muted-foreground: oklch(0.48 calc(var(--theme-c-brand) * 0.35) var(--theme-h-brand));
+  --accent: oklch(0.92 calc(var(--theme-c-brand) * 0.5) var(--theme-h-brand));
+  --accent-foreground: oklch(0.28 calc(var(--theme-c-brand) * 0.5) var(--theme-h-brand));
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.88 0.04 155);
-  --input: oklch(0.88 0.04 155);
-  --ring: oklch(0.55 0.12 160);
+  --border: oklch(0.88 calc(var(--theme-c-brand) * 0.35) var(--theme-h-brand));
+  --input: oklch(0.88 calc(var(--theme-c-brand) * 0.35) var(--theme-h-brand));
+  --ring: oklch(0.55 calc(var(--theme-c-brand) * 0.9) var(--theme-h-brand));
 }
 
 .dark {
@@ -90,7 +162,15 @@
   body {
     @apply bg-background text-foreground antialiased;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, oklch(0.92 0.08 150 / 0.5), transparent),
-      radial-gradient(ellipse 60% 40% at 100% 100%, oklch(0.94 0.06 155 / 0.3), transparent);
+      radial-gradient(
+        ellipse 80% 50% at 50% -20%,
+        oklch(0.92 calc(var(--theme-c-brand) * 0.55) var(--theme-h-brand) / 0.5),
+        transparent
+      ),
+      radial-gradient(
+        ellipse 60% 40% at 100% 100%,
+        oklch(0.94 calc(var(--theme-c-info) * 0.45) var(--theme-h-info) / 0.3),
+        transparent
+      );
   }
 }

@@ -20,6 +20,16 @@ export type MemberDto = {
   id: string;
   name: string;
   email: string | null;
+  emailVerified?: boolean;
+  isHost?: boolean;
+  userId?: string | null;
+  isClaimed?: boolean;
+};
+
+export type TripAuthDto = {
+  hostMemberId: string | null;
+  hostUserId: string | null;
+  hostEmail: string | null;
 };
 
 export type TripTaskAttachmentDto = {
@@ -111,6 +121,7 @@ export type TripDto = {
   settlements: TripSettlementDto[];
   activities: TripActivityDto[];
   presences: TripMemberPresenceDto[];
+  auth?: TripAuthDto;
 };
 
 export type CreateTripBody = {

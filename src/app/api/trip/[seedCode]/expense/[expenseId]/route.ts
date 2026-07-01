@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { serializeExpense } from "@/lib/expense-serializer";
 import { prisma } from "@/lib/prisma";
+import { authorizeTripBySeedCode } from "@/lib/trip-auth";
 
 type RouteContext = {
   params: Promise<{ seedCode: string; expenseId: string }>;
@@ -15,6 +16,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (!isValidSeedCode(seedCode)) {
       return jsonError("Invalid seed code format", 400);
     }
+
+    const auth = await authorizeTripBySeedCode(request, seedCode);
+    if (!auth.ok) return jsonError(auth.error, auth.status);
 
     const trip = await prisma.trip.findUnique({
       where: { seedCode },
@@ -82,7 +86,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   }
 }
 
-export async function DELETE(_request: NextRequest, context: RouteContext) {
+export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
     const { seedCode: raw, expenseId } = await context.params;
     const seedCode = normalizeSeedCode(raw);
@@ -90,6 +94,9 @@ export async function DELETE(_request: NextRequest, context: RouteContext) {
     if (!isValidSeedCode(seedCode)) {
       return jsonError("Invalid seed code format", 400);
     }
+
+    const auth = await authorizeTripBySeedCode(request, seedCode);
+    if (!auth.ok) return jsonError(auth.error, auth.status);
 
     const trip = await prisma.trip.findUnique({
       where: { seedCode },

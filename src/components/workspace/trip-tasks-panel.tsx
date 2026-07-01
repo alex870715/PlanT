@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { compressImageFile } from "@/lib/image-compress";
 import { formatMoney } from "@/lib/currency";
+import { seededFetch } from "@/lib/trip-client";
 import type { TripDto, TripTaskDto } from "@/types/trip";
 
 type TripTasksPanelProps = {
@@ -66,7 +67,7 @@ export function TripTasksPanel({
   async function toggleTask(task: TripTaskDto) {
     setBusyId(task.id);
     try {
-      await fetch(`/api/trip/${trip.seedCode}/task/${task.id}`, {
+      await seededFetch(`/api/trip/${trip.seedCode}/task/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ done: !task.done }),
@@ -80,7 +81,7 @@ export function TripTasksPanel({
   async function updateAssignee(task: TripTaskDto, value: string) {
     setBusyId(task.id);
     try {
-      await fetch(`/api/trip/${trip.seedCode}/task/${task.id}`, {
+      await seededFetch(`/api/trip/${trip.seedCode}/task/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assignee: value || null }),
@@ -95,7 +96,7 @@ export function TripTasksPanel({
     if (notes === (task.notes ?? "")) return;
     setBusyId(task.id);
     try {
-      await fetch(`/api/trip/${trip.seedCode}/task/${task.id}`, {
+      await seededFetch(`/api/trip/${trip.seedCode}/task/${task.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ notes: notes || null }),
@@ -109,7 +110,7 @@ export function TripTasksPanel({
   async function removeTask(taskId: string) {
     setBusyId(taskId);
     try {
-      await fetch(`/api/trip/${trip.seedCode}/task/${taskId}`, {
+      await seededFetch(`/api/trip/${trip.seedCode}/task/${taskId}`, {
         method: "DELETE",
       });
       await refreshTrip();
@@ -122,7 +123,7 @@ export function TripTasksPanel({
     if (!newTitle.trim()) return;
     setAdding(true);
     try {
-      await fetch(`/api/trip/${trip.seedCode}/task`, {
+      await seededFetch(`/api/trip/${trip.seedCode}/task`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title: newTitle.trim(), category: "booking" }),
@@ -166,7 +167,7 @@ export function TripTasksPanel({
         : undefined;
       if (uploader) formData.append("uploadedBy", uploader);
 
-      const res = await fetch(
+      const res = await seededFetch(
         `/api/trip/${trip.seedCode}/task/${taskId}/attachment`,
         { method: "POST", body: formData }
       );
@@ -187,7 +188,7 @@ export function TripTasksPanel({
   async function removeAttachment(taskId: string, attachmentId: string) {
     setBusyId(attachmentId);
     try {
-      await fetch(
+      await seededFetch(
         `/api/trip/${trip.seedCode}/task/${taskId}/attachment/${attachmentId}`,
         { method: "DELETE" }
       );
@@ -201,7 +202,7 @@ export function TripTasksPanel({
     const confirmed = task.confirmations.some((c) => c.memberId === memberId);
     setBusyId(`${task.id}-${memberId}`);
     try {
-      await fetch(`/api/trip/${trip.seedCode}/task/${task.id}/confirm`, {
+      await seededFetch(`/api/trip/${trip.seedCode}/task/${task.id}/confirm`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ memberId, confirmed: !confirmed }),
@@ -248,7 +249,7 @@ export function TripTasksPanel({
             </span>
           ) : (
             <span className="text-xs text-amber-800">
-              請先在上方團員區按「這是我」綁定身份
+              請先登入並加入旅程，才能上傳／確認
             </span>
           )}
         </div>
@@ -352,17 +353,39 @@ export function TripTasksPanel({
 
               {isOpen && (
                 <div className="space-y-3 border-t border-amber-100 px-3 pb-3 pt-2">
-                  <Input
-                    placeholder="負責人"
-                    className="h-8 text-xs"
-                    defaultValue={task.assignee ?? ""}
-                    onBlur={(e) => {
-                      const v = e.target.value.trim();
-                      if (v !== (task.assignee ?? "")) {
-                        void updateAssignee(task, v);
-                      }
-                    }}
-                  />
+                  <div>
+                    <label className="mb-1 block text-[11px] font-medium text-amber-900">
+                      負責人
+                    </label>
+                    {trip.members.length === 0 ? (
+                      <p className="text-xs text-amber-700">
+                        請先在上方新增參與人
+                      </p>
+                    ) : (
+                      <select
+                        className="h-8 w-full rounded-md border border-amber-200 bg-white px-2 text-xs text-amber-950 disabled:opacity-60"
+                        value={task.assignee ?? ""}
+                        disabled={busyId === task.id}
+                        onChange={(e) =>
+                          void updateAssignee(task, e.target.value)
+                        }
+                        aria-label="負責人"
+                      >
+                        <option value="">未指定</option>
+                        {trip.members.map((m) => (
+                          <option key={m.id} value={m.name}>
+                            {m.name}
+                          </option>
+                        ))}
+                        {task.assignee &&
+                          !trip.members.some((m) => m.name === task.assignee) && (
+                            <option value={task.assignee}>
+                              {task.assignee}（已不在團內）
+                            </option>
+                          )}
+                      </select>
+                    )}
+                  </div>
 
                   <textarea
                     placeholder="備註（訂位時間、人數、確認碼…）"

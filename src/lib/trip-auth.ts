@@ -1,13 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { isValidSeedCode, normalizeSeedCode } from "@/lib/api";
+import {
+  requireTripEdit,
+  requireTripHost,
+  resolveTripAccess,
+  type TripAccessContext,
+  type AccessResult,
+} from "@/lib/trip-access";
 
 export const SEED_HEADER = "x-plant-seed";
+export const MEMBER_HEADER = "x-plant-member";
 
+export type { AccessResult };
 
 /**
- * 此 App 無帳號系統，seedCode 即為旅程的存取憑證。
- * 對 spot/member 等以 id 操作的端點，要求請求附帶所屬旅程的 seedCode，
- * 並驗證該資源確實屬於此旅程，避免「知道 id 就能改任何人資料」。
+ * 此 App 以 seedCode 作為旅程存取憑證；編輯需登入並加入旅程。
  */
 export function getSeedFromRequest(request: Request): string | null {
   const raw = request.headers.get(SEED_HEADER);
@@ -16,14 +23,14 @@ export function getSeedFromRequest(request: Request): string | null {
   return isValidSeedCode(seed) ? seed : null;
 }
 
-export type AccessResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; status: number; error: string };
+export { requireTripEdit, requireTripHost, resolveTripAccess };
+export type { TripAccessContext };
 
 export async function authorizeSpot(
   request: Request,
-  spotId: string
-): Promise<AccessResult<{ tripId: string }>> {
+  spotId: string,
+  options?: { requireHost?: boolean }
+): Promise<AccessResult<{ tripId: string; access: TripAccessContext }>> {
   const spot = await prisma.spot.findUnique({
     where: { id: spotId },
     select: { id: true, tripId: true, trip: { select: { seedCode: true } } },
@@ -39,13 +46,22 @@ export async function authorizeSpot(
     return { ok: false, status: 403, error: "無權限操作此景點" };
   }
 
-  return { ok: true, value: { tripId: spot.tripId } };
+  const auth = options?.requireHost
+    ? await requireTripHost(request, seed)
+    : await requireTripEdit(request, seed);
+  if (!auth.ok) return auth;
+
+  return {
+    ok: true,
+    value: { tripId: spot.tripId, access: auth.value },
+  };
 }
 
 export async function authorizeMember(
   request: Request,
-  memberId: string
-): Promise<AccessResult<{ tripId: string }>> {
+  memberId: string,
+  options?: { requireHost?: boolean }
+): Promise<AccessResult<{ tripId: string; access: TripAccessContext }>> {
   const member = await prisma.member.findUnique({
     where: { id: memberId },
     select: { id: true, tripId: true, trip: { select: { seedCode: true } } },
@@ -61,5 +77,33 @@ export async function authorizeMember(
     return { ok: false, status: 403, error: "無權限操作此成員" };
   }
 
-  return { ok: true, value: { tripId: member.tripId } };
+  const auth = options?.requireHost
+    ? await requireTripHost(request, seed)
+    : await requireTripEdit(request, seed);
+  if (!auth.ok) return auth;
+
+  return {
+    ok: true,
+    value: { tripId: member.tripId, access: auth.value },
+  };
+}
+
+export async function authorizeTripBySeedCode(
+  request: Request,
+  seedCode: string,
+  options?: { requireHost?: boolean }
+): Promise<AccessResult<TripAccessContext>> {
+  const seed = normalizeSeedCode(seedCode);
+  if (!isValidSeedCode(seed)) {
+    return { ok: false, status: 400, error: "Invalid seed code format" };
+  }
+
+  const headerSeed = getSeedFromRequest(request);
+  if (headerSeed && normalizeSeedCode(headerSeed) !== seed) {
+    return { ok: false, status: 403, error: "Seed 不一致" };
+  }
+
+  return options?.requireHost
+    ? requireTripHost(request, seed)
+    : requireTripEdit(request, seed);
 }

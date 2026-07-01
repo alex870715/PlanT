@@ -4,6 +4,7 @@ import { findTripBySeedCode } from "@/lib/load-trip";
 import { prisma } from "@/lib/prisma";
 import { isSupportedCurrency } from "@/lib/currency";
 import { serializeTrip } from "@/lib/trip-serializer";
+import { authorizeTripBySeedCode } from "@/lib/trip-auth";
 
 type RouteContext = { params: Promise<{ seedCode: string }> };
 
@@ -40,6 +41,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (!isValidSeedCode(seedCode)) {
       return jsonError("Invalid seed code format", 400);
     }
+
+    const auth = await authorizeTripBySeedCode(request, seedCode, {
+      requireHost: true,
+    });
+    if (!auth.ok) return jsonError(auth.error, auth.status);
 
     const body = await request.json().catch(() => ({}));
     const currency =

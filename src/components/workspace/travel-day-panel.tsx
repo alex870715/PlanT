@@ -23,7 +23,7 @@ import {
   getTodayRouteSpots,
   isWithinTripDates,
 } from "@/lib/travel-day";
-import { memberFetch } from "@/lib/trip-client";
+import { seededFetch } from "@/lib/trip-client";
 import type { SpotDto, TripDto, TripMemberPresenceDto } from "@/types/trip";
 
 type TravelDayPanelProps = {
@@ -85,7 +85,7 @@ export function TravelDayPanel({
     }
     setBusy(true);
     try {
-      const res = await memberFetch(`/api/trip/${trip.seedCode}/presence`, {
+      const res = await seededFetch(`/api/trip/${trip.seedCode}/presence`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

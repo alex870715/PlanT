@@ -21,10 +21,13 @@ export function dateKeyFromLocalDate(d: Date): string {
 }
 
 export function compareSpotsInGroup(a: SpotDto, b: SpotDto): number {
+  if (a.sortOrder !== b.sortOrder) {
+    return a.sortOrder - b.sortOrder;
+  }
   if (a.scheduledAt && b.scheduledAt) {
     return new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime();
   }
-  return a.sortOrder - b.sortOrder;
+  return 0;
 }
 
 export function sortSpotsChronologically(spots: SpotDto[]): SpotDto[] {
@@ -294,17 +297,57 @@ function arrayMove<T>(arr: T[], from: number, to: number): T[] {
   return copy;
 }
 
+function scheduledTimeSlots(spots: SpotDto[]): number[] {
+  return spots
+    .filter((s) => s.scheduledAt)
+    .map((s) => new Date(s.scheduledAt!).getTime())
+    .sort((a, b) => a - b);
+}
+
+function scheduledAtForGroupSlot(
+  spot: SpotDto,
+  dateKey: string,
+  tripStartDate: string,
+  timeMs: number | null
+): string | null {
+  if (dateKey === "unscheduled") return null;
+  if (timeMs === null) {
+    return applySpotToDay(spot, dateKey, tripStartDate);
+  }
+  const [y, m, d] = dateKey.split("-").map(Number);
+  const t = new Date(timeMs);
+  return new Date(y, m - 1, d, t.getHours(), t.getMinutes(), 0, 0).toISOString();
+}
+
 export function buildReorderPayload(
   groups: SpotDayGroup[],
   tripStartDate: string
 ): { id: string; sortOrder: number; scheduledAt: string | null }[] {
-  const flat = flattenGroups(groups);
-  return flat.map((spot, index) => {
-    const group = findGroupForSpot(groups, spot.id)!;
-    return {
-      id: spot.id,
-      sortOrder: index,
-      scheduledAt: applySpotToDay(spot, group.dateKey, tripStartDate),
-    };
-  });
+  const items: { id: string; sortOrder: number; scheduledAt: string | null }[] =
+    [];
+  let sortOrder = 0;
+
+  for (const group of groups) {
+    const timeSlots = scheduledTimeSlots(group.spots);
+    let slotIndex = 0;
+
+    for (const spot of group.spots) {
+      const timeMs =
+        spot.scheduledAt && slotIndex < timeSlots.length
+          ? timeSlots[slotIndex++]
+          : null;
+      items.push({
+        id: spot.id,
+        sortOrder: sortOrder++,
+        scheduledAt: scheduledAtForGroupSlot(
+          spot,
+          group.dateKey,
+          tripStartDate,
+          timeMs
+        ),
+      });
+    }
+  }
+
+  return items;
 }

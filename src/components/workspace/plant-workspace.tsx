@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
 import { ActivityPanel } from "@/components/workspace/activity-panel";
+import { TripAuthBar } from "@/components/workspace/trip-auth-bar";
 import { TripMap } from "@/components/workspace/trip-map";
 import { AiSettingsDialog } from "@/components/settings/ai-settings-dialog";
 import { StorybookModal } from "@/components/workspace/storybook-modal";
@@ -17,9 +19,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { formatMoney } from "@/lib/currency";
 import {
-  getActiveMemberId,
+  fetchAuthStatus,
   seededFetch,
+  setActiveMemberId,
   setActiveSeed,
+  type TripRole,
 } from "@/lib/trip-client";
 import type { SpotDto, TripDto } from "@/types/trip";
 
@@ -30,6 +34,7 @@ type PlantWorkspaceProps = {
 };
 
 export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
+  const { status: sessionStatus } = useSession();
   const [trip, setTrip] = useState<TripDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +56,9 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
   const [sproutFocusMemberId, setSproutFocusMemberId] = useState<string | null>(
     null
   );
-  const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
+  const [activeMemberId, setActiveMemberIdState] = useState<string | null>(null);
+  const [authRole, setAuthRole] = useState<TripRole>("viewer");
+  const [canEdit, setCanEdit] = useState(false);
   const [remoteUpdate, setRemoteUpdate] = useState(false);
   const lastUpdatedAtRef = useRef<string>("");
 
@@ -61,8 +68,26 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
   }, []);
 
   const handleIdentityChange = useCallback((memberId: string | null) => {
+    setActiveMemberIdState(memberId);
     setActiveMemberId(memberId);
   }, []);
+
+  const handleAuthChange = useCallback(
+    (role: TripRole, edit: boolean, memberId: string | null) => {
+      setAuthRole(role);
+      setCanEdit(edit);
+      setActiveMemberIdState(memberId);
+      setActiveMemberId(memberId);
+    },
+    []
+  );
+
+  const refreshAuth = useCallback(async () => {
+    const status = await fetchAuthStatus(seedCode);
+    if (status) {
+      handleAuthChange(status.role, status.canEdit, status.linkedMemberId);
+    }
+  }, [seedCode, handleAuthChange]);
 
   const fetchTripSilent = useCallback(async () => {
     try {
@@ -119,9 +144,12 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
 
   useEffect(() => {
     setActiveSeed(seedCode);
-    setActiveMemberId(getActiveMemberId());
+    void refreshAuth();
+  }, [seedCode, refreshAuth, sessionStatus]);
+
+  useEffect(() => {
     return () => setActiveSeed(null);
-  }, [seedCode]);
+  }, []);
 
   useEffect(() => {
     if (trip?.updatedAt) {
@@ -233,11 +261,26 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
 
       <div className="grid flex-1 gap-4 p-3 sm:p-4 lg:grid-cols-2 lg:items-start lg:p-6">
         <div className="order-2 flex min-w-0 flex-col gap-4 lg:order-1">
+          <TripAuthBar
+            trip={trip}
+            role={authRole}
+            canEdit={canEdit}
+            onAuthChange={handleAuthChange}
+          />
+          {!canEdit && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              目前為<strong>僅檢視</strong>模式。請先<strong>登入</strong>
+              ，輸入名字<strong>加入旅程</strong>，即可編輯行程。
+            </div>
+          )}
           <MembersPanel
             trip={trip}
             activeMemberId={activeMemberId}
+            canEdit={canEdit}
+            isHost={authRole === "host"}
             onIdentityChange={handleIdentityChange}
             onTripUpdate={setTrip}
+            onAuthRefresh={() => void refreshAuth()}
           />
           <ActivityPanel activities={trip.activities ?? []} />
           <Tabs

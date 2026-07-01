@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { logTripActivity } from "@/lib/trip-activity";
 import { resolveTripActor } from "@/lib/trip-actor";
 import { createExpenseSchema, parseBody } from "@/lib/validation";
+import { authorizeTripBySeedCode } from "@/lib/trip-auth";
 
 type RouteContext = { params: Promise<{ seedCode: string }> };
 
@@ -16,6 +17,9 @@ export async function POST(request: NextRequest, context: RouteContext) {
     if (!isValidSeedCode(seedCode)) {
       return jsonError("Invalid seed code format", 400);
     }
+
+    const auth = await authorizeTripBySeedCode(request, seedCode);
+    if (!auth.ok) return jsonError(auth.error, auth.status);
 
     const parsed = await parseBody(request, createExpenseSchema);
     if (!parsed.ok) return jsonError(parsed.error, 400);

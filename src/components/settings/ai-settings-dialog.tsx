@@ -36,8 +36,13 @@ export function AiSettingsDialog({ trigger, onSaved }: AiSettingsDialogProps) {
   const [provider, setProvider] = useState<AiProvider>("openai");
   const [apiKey, setApiKey] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [aiConfigured, setAiConfigured] = useState(false);
 
   const providerInfo = getProviderInfo(provider);
+
+  useEffect(() => {
+    setAiConfigured(hasConfiguredAi());
+  }, []);
 
   useEffect(() => {
     if (open) {
@@ -68,6 +73,7 @@ export function AiSettingsDialog({ trigger, onSaved }: AiSettingsDialogProps) {
     setStoredProvider(provider);
     setStoredApiKey(provider, trimmed);
     setError(null);
+    setAiConfigured(hasConfiguredAi());
     onSaved?.();
     setOpen(false);
   }
@@ -75,12 +81,13 @@ export function AiSettingsDialog({ trigger, onSaved }: AiSettingsDialogProps) {
   function handleClear() {
     setApiKey("");
     setStoredApiKey(provider, "");
+    setAiConfigured(hasConfiguredAi());
     onSaved?.();
   }
 
   const savedKey = getStoredApiKey(provider);
   const isCurrentSaved =
-    hasConfiguredAi() &&
+    aiConfigured &&
     getAiSettings().provider === provider &&
     !!savedKey;
 
@@ -88,7 +95,7 @@ export function AiSettingsDialog({ trigger, onSaved }: AiSettingsDialogProps) {
     <Button variant="outline" size="sm" className="gap-1.5">
       <KeyRound className="h-4 w-4" />
       AI 設定
-      {hasConfiguredAi() && (
+      {aiConfigured && (
         <span className="ml-1 h-2 w-2 rounded-full bg-emerald-500" />
       )}
     </Button>

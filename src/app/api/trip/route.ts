@@ -4,6 +4,8 @@ import { createTripWithDefaults } from "@/lib/load-trip";
 import { generateUniqueSeedCode } from "@/lib/seed-code";
 import { serializeTrip } from "@/lib/trip-serializer";
 import { createTripSchema, parseBody } from "@/lib/validation";
+import { autoLinkHostOnTripCreate } from "@/lib/trip-access";
+import { getSessionUser } from "@/lib/session";
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,6 +33,21 @@ export async function POST(request: NextRequest) {
       endDate,
       memberName,
     });
+
+    const user = await getSessionUser();
+    if (user?.id) {
+      await autoLinkHostOnTripCreate({
+        tripId: trip.id,
+        userId: user.id,
+        userEmail: user.email,
+      });
+      const refreshed = await import("@/lib/load-trip").then((m) =>
+        m.findTripById(trip.id)
+      );
+      if (refreshed) {
+        return NextResponse.json(serializeTrip(refreshed), { status: 201 });
+      }
+    }
 
     return NextResponse.json(serializeTrip(trip), { status: 201 });
   } catch (error) {
