@@ -20,6 +20,16 @@ export function isPrismaUnknownField(error: unknown): boolean {
   );
 }
 
+/** P2022：資料庫缺少 schema 中的欄位（production 未 migrate） */
+export function isPrismaMissingColumn(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  return error.code === "P2022";
+}
+
 export function isPrismaSchemaMismatch(error: unknown): boolean {
-  return isPrismaMissingTable(error) || isPrismaUnknownField(error);
+  return (
+    isPrismaMissingTable(error) ||
+    isPrismaMissingColumn(error) ||
+    isPrismaUnknownField(error)
+  );
 }
