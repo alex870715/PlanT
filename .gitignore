@@ -39,5 +39,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma
-/prisma/migrations
+# prisma — migrations 需進版控，正式環境才能 db:migrate:deploy
