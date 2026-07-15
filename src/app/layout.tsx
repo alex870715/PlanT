@@ -19,7 +19,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PlanT 🌱 — Plant Your Next Journey",
   description:
-    "Smart group travel planner with branching routes and AI fairy-tale booklets.",
+    "Smart group travel planner with branching routes and travel handbooks.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

@@ -8,7 +8,6 @@ import { ActivityPanel } from "@/components/workspace/activity-panel";
 import { TripAuthBar } from "@/components/workspace/trip-auth-bar";
 import { TripMap } from "@/components/workspace/trip-map";
 import { AiSettingsDialog } from "@/components/settings/ai-settings-dialog";
-import { StorybookModal } from "@/components/workspace/storybook-modal";
 import { TripHandbookViewer } from "@/components/workspace/trip-handbook-viewer";
 import { MembersPanel } from "@/components/workspace/members-panel";
 import { SpotDiscoverDialog } from "@/components/workspace/spot-discover-dialog";
@@ -262,7 +261,6 @@ export function PlantWorkspace({ seedCode, autoOpenGuide = false }: PlantWorkspa
             canEdit={canEdit}
             autoOpen={autoOpenGuide}
           />
-          <StorybookModal seedCode={trip.seedCode} />
         </div>
       </header>
 
