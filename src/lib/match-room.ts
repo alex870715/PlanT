@@ -120,9 +120,10 @@ export function deckWithVoteStats(
   return cards.map((card) => {
     const stats = byCard.get(card.id);
     const likes = stats?.likes ?? 0;
+    const likeVoters = stats?.likeVoters ?? [];
     const label =
-      voterCount > 0 && likes > 0
-        ? `♥ ${likes}/${voterCount} 人想去`
+      likeVoters.length > 0
+        ? `♥ ${likeVoters.join("、")}`
         : voterCount > 0
           ? "尚未有人收藏"
           : "";

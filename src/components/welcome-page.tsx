@@ -74,7 +74,7 @@ export function WelcomePage() {
       }
 
       const trip = await res.json();
-      router.push(`/trip/${trip.seedCode}`);
+      router.push(`/trip/${trip.seedCode}?guide=1`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to plant trip");
     } finally {

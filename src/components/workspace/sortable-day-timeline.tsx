@@ -24,6 +24,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Loader2, Pencil, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SpotAddPanel } from "@/components/workspace/spot-add-panel";
+import { isLodgingSpot } from "@/lib/spot-category";
 import { cn } from "@/lib/utils";
 import { formatScheduledAt } from "@/lib/datetime";
 import {
@@ -497,6 +498,11 @@ function SortableSpotCard({
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-medium text-emerald-950 hover:underline">
+              {isLodgingSpot(spot.name, spot.notes) && (
+                <span className="mr-1.5 text-[10px] font-bold text-violet-700">
+                  🏨 住宿
+                </span>
+              )}
               {spot.name}
             </p>
             {timeLabel && (

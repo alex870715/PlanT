@@ -499,7 +499,7 @@ export function DiscoverFlow() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "建立失敗");
-        router.push(data.redirectUrl ?? `/trip/${data.seedCode}`);
+        router.push(`${data.redirectUrl ?? `/trip/${data.seedCode}`}?guide=1`);
         return;
       }
 
@@ -517,7 +517,7 @@ export function DiscoverFlow() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "建立失敗");
-      router.push(data.redirectUrl ?? `/trip/${data.seedCode}`);
+      router.push(`${data.redirectUrl ?? `/trip/${data.seedCode}`}?guide=1`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "建立失敗");
       setStep("summary");

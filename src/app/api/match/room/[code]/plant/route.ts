@@ -84,7 +84,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       {
         trip,
         seedCode,
-        redirectUrl: `/trip/${seedCode}`,
+        redirectUrl: `/trip/${seedCode}?guide=1`,
       },
       { status: 201 }
     );

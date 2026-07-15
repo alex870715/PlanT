@@ -9,6 +9,7 @@ import { TripAuthBar } from "@/components/workspace/trip-auth-bar";
 import { TripMap } from "@/components/workspace/trip-map";
 import { AiSettingsDialog } from "@/components/settings/ai-settings-dialog";
 import { StorybookModal } from "@/components/workspace/storybook-modal";
+import { TripHandbookViewer } from "@/components/workspace/trip-handbook-viewer";
 import { MembersPanel } from "@/components/workspace/members-panel";
 import { SpotDiscoverDialog } from "@/components/workspace/spot-discover-dialog";
 import { TimelinePanel } from "@/components/workspace/timeline-panel";
@@ -31,9 +32,10 @@ type WorkspaceTab = "timeline" | "tasks" | "expense";
 
 type PlantWorkspaceProps = {
   seedCode: string;
+  autoOpenGuide?: boolean;
 };
 
-export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
+export function PlantWorkspace({ seedCode, autoOpenGuide = false }: PlantWorkspaceProps) {
   const { status: sessionStatus } = useSession();
   const [trip, setTrip] = useState<TripDto | null>(null);
   const [loading, setLoading] = useState(true);
@@ -255,6 +257,11 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
         </div>
         <div className="flex items-center gap-2">
           <AiSettingsDialog />
+          <TripHandbookViewer
+            seedCode={trip.seedCode}
+            canEdit={canEdit}
+            autoOpen={autoOpenGuide}
+          />
           <StorybookModal seedCode={trip.seedCode} />
         </div>
       </header>
@@ -368,6 +375,7 @@ export function PlantWorkspace({ seedCode }: PlantWorkspaceProps) {
               tripTitle={trip.title}
               tripStartDate={trip.startDate}
               tripEndDate={trip.endDate}
+              anchorLodging={trip.anchorLodging ?? true}
               focusMemberId={activeTab === "timeline" ? sproutFocusMemberId : null}
               selectedDayId={mapDayId}
               onDayChange={setMapDayId}

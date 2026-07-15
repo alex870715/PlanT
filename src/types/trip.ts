@@ -122,6 +122,8 @@ export type TripDto = {
   activities: TripActivityDto[];
   presences: TripMemberPresenceDto[];
   auth?: TripAuthDto;
+  /** 旅遊手冊：每日路線以住宿為起訖點 */
+  anchorLodging?: boolean;
 };
 
 export type CreateTripBody = {

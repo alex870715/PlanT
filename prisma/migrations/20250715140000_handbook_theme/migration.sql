@@ -1,0 +1,1 @@
+ALTER TABLE "TripHandbook" ADD COLUMN IF NOT EXISTS "theme" TEXT NOT NULL DEFAULT 'fairy-tale';

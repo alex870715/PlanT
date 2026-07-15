@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isPrismaSchemaMismatch } from "@/lib/prisma-compat";
 import { tripIncludeFallbacks } from "@/lib/trip-include";
 import { DEFAULT_TRIP_TASKS } from "@/lib/trip-tasks";
+import { saveTripHandbookForTripId } from "@/lib/save-trip-handbook";
 
 type TripWithRelations = Prisma.TripGetPayload<{
   include: (typeof tripIncludeFallbacks)[number];
@@ -90,5 +91,6 @@ export async function createTripWithDefaults(
 
   const full = await findTripById(trip.id);
   if (!full) throw new Error("Trip not found after create");
+  await saveTripHandbookForTripId(trip.id);
   return full;
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { findTripBySeedCode } from "@/lib/load-trip";
+import { attachTripHandbookSettings } from "@/lib/save-trip-handbook";
 import { prisma } from "@/lib/prisma";
 import { isSupportedCurrency } from "@/lib/currency";
 import { serializeTrip } from "@/lib/trip-serializer";
@@ -26,7 +27,9 @@ export async function GET(
       return jsonError("Trip not found", 404);
     }
 
-    return NextResponse.json(serializeTrip(trip));
+    return NextResponse.json(
+      await attachTripHandbookSettings(serializeTrip(trip), trip.id)
+    );
   } catch (error) {
     console.error("GET /api/trip/[seedCode]", error);
     return jsonError("Failed to fetch trip", 500);

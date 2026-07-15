@@ -22,6 +22,11 @@ import {
   type TravelModeId,
 } from "@/lib/travel";
 import { seededFetch } from "@/lib/trip-client";
+import {
+  applyLodgingToNotes,
+  isLodgingSpot,
+  stripCategoryPrefix,
+} from "@/lib/spot-category";
 import type { SpotDto } from "@/types/trip";
 
 type SpotEditDialogProps = {
@@ -30,6 +35,8 @@ type SpotEditDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSaved: () => void;
+  /** 主線景點可標記為住宿 */
+  showLodgingToggle?: boolean;
   mapPickActive?: boolean;
   onStartMapPick?: () => void;
   mapPickResult?: { lat: number; lng: number } | null;
@@ -44,6 +51,7 @@ export function SpotEditDialog({
   mapPickActive,
   onStartMapPick,
   mapPickResult,
+  showLodgingToggle = false,
 }: SpotEditDialogProps) {
   const [name, setName] = useState("");
   const [latitude, setLatitude] = useState("");
@@ -51,6 +59,7 @@ export function SpotEditDialog({
   const [scheduledAt, setScheduledAt] = useState("");
   const [openHours, setOpenHours] = useState("");
   const [notes, setNotes] = useState("");
+  const [isLodging, setIsLodging] = useState(false);
   const [travelMode, setTravelMode] = useState("");
   const [travelMinutes, setTravelMinutes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -68,7 +77,8 @@ export function SpotEditDialog({
     setLongitude(String(spot.longitude));
     setScheduledAt(toDatetimeLocalValue(spot.scheduledAt));
     setOpenHours(spot.openHours ?? "");
-    setNotes(spot.notes ?? "");
+    setNotes(stripCategoryPrefix(spot.notes ?? ""));
+    setIsLodging(isLodgingSpot(spot.name, spot.notes));
     setTravelMode(spot.travelMode ?? "walk");
     setTravelMinutes(
       spot.travelMinutes != null ? String(spot.travelMinutes) : ""
@@ -144,7 +154,7 @@ export function SpotEditDialog({
           longitude: lng,
           scheduledAt: fromDatetimeLocalValue(scheduledAt),
           openHours: openHours.trim() || null,
-          notes: notes.trim() || null,
+          notes: applyLodgingToNotes(notes.trim() || null, isLodging),
           travelMode: previousSpot ? travelMode || null : null,
           travelMinutes:
             previousSpot && travelMinutes !== ""
@@ -319,6 +329,22 @@ export function SpotEditDialog({
               onChange={(e) => setNotes(e.target.value)}
             />
           </div>
+          {showLodgingToggle && (
+            <label className="flex cursor-pointer items-start gap-2 rounded-lg border border-violet-200 bg-violet-50/80 px-3 py-2.5">
+              <input
+                type="checkbox"
+                className="mt-0.5 accent-violet-600"
+                checked={isLodging}
+                onChange={(e) => setIsLodging(e.target.checked)}
+              />
+              <span className="text-sm text-violet-950">
+                <span className="font-medium">🏨 標記為住宿</span>
+                <span className="mt-0.5 block text-xs text-violet-800/90">
+                  開啟「住宿銜接」後，地圖單日路線會以此為起點與終點
+                </span>
+              </span>
+            </label>
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
         </div>
 

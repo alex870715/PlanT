@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { isPrismaSchemaMismatch } from "@/lib/prisma-compat";
 import { generateUniqueSeedCode } from "@/lib/seed-code";
 import { logTripActivity } from "@/lib/trip-activity";
+import { saveTripHandbookForTripId } from "@/lib/save-trip-handbook";
 import { DEFAULT_TRIP_TASKS } from "@/lib/trip-tasks";
 
 export type ForkTripInput = {
@@ -168,6 +169,8 @@ export async function forkTripFromSeed(
   if (!full) {
     return { ok: false, status: 500, error: "建立失敗" };
   }
+
+  await saveTripHandbookForTripId(tripId);
 
   return { ok: true, seedCode: newSeedCode };
 }

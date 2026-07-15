@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSeedCode, jsonError, normalizeSeedCode } from "@/lib/api";
 import { findTripBySeedCode } from "@/lib/load-trip";
+import { attachTripHandbookSettings } from "@/lib/save-trip-handbook";
 import { prisma } from "@/lib/prisma";
 import { buildGeoSchedule } from "@/lib/trip-schedule";
 import { serializeSpot } from "@/lib/spot-serializer";
@@ -55,8 +56,13 @@ export async function POST(request: NextRequest, context: RouteContext) {
     const updated = await findTripBySeedCode(seedCode);
     if (!updated) return jsonError("Trip not found", 404);
 
+    const tripDto = await attachTripHandbookSettings(
+      serializeTrip(updated),
+      updated.id
+    );
+
     return NextResponse.json({
-      trip: serializeTrip(updated),
+      trip: tripDto,
       message: `已依 ${updates.length} 個主幹景點、出遊天數與地理位置重新排程`,
     });
   } catch (error) {

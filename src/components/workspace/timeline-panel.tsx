@@ -12,6 +12,7 @@ import {
   groupSpotsByDay,
 } from "@/lib/spot-groups";
 import { partitionSpots } from "@/lib/spots";
+import { tripHasLodging } from "@/lib/spot-category";
 import { inferTripDestination } from "@/lib/discover/spot-suggestions";
 import { seededFetch } from "@/lib/trip-client";
 import type { SpotDto, TripDto } from "@/types/trip";
@@ -71,7 +72,16 @@ export function TimelinePanel({
   const [mapPickPending, setMapPickPending] = useState(false);
   const [scheduling, setScheduling] = useState(false);
   const [scheduleMsg, setScheduleMsg] = useState<string | null>(null);
+  const [anchorLodging, setAnchorLodging] = useState(
+    trip.anchorLodging ?? true
+  );
+  const [anchorLodgingSaving, setAnchorLodgingSaving] = useState(false);
   const [editIsTrunk, setEditIsTrunk] = useState(true);
+  const hasLodging = tripHasLodging(trip.spots);
+
+  useEffect(() => {
+    setAnchorLodging(trip.anchorLodging ?? true);
+  }, [trip.anchorLodging]);
 
   useEffect(() => {
     if (!externalEditSpotId) return;
@@ -141,6 +151,31 @@ export function TimelinePanel({
       setScheduleMsg(e instanceof Error ? e.message : "排程失敗");
     } finally {
       setScheduling(false);
+    }
+  }
+
+  async function handleAnchorLodgingChange(enabled: boolean) {
+    setAnchorLodgingSaving(true);
+    setScheduleMsg(null);
+    try {
+      const res = await seededFetch(`/api/trip/${trip.seedCode}/handbook`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ anchorLodging: enabled }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "無法更新設定");
+      setAnchorLodging(enabled);
+      onTripUpdate({ ...trip, anchorLodging: enabled });
+      setScheduleMsg(
+        enabled
+          ? "已開啟地圖住宿銜接（切換至單日檢視）"
+          : "已關閉地圖住宿銜接"
+      );
+    } catch (e) {
+      setScheduleMsg(e instanceof Error ? e.message : "無法更新設定");
+    } finally {
+      setAnchorLodgingSaving(false);
     }
   }
 
@@ -228,23 +263,43 @@ export function TimelinePanel({
                 Seed: {trip.seedCode} · 拖曳調整順序
               </p>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="shrink-0 border-violet-200 text-violet-800 hover:bg-violet-50"
-              onClick={() => void autoSchedule()}
-              disabled={scheduling}
-            >
-              {scheduling ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
-              )}
-              一鍵排程
-            </Button>
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <label className="flex cursor-pointer items-center gap-1.5 rounded-md border border-violet-200 bg-violet-50/80 px-2.5 py-1.5 text-xs text-violet-900">
+                <input
+                  type="checkbox"
+                  className="accent-violet-600"
+                  checked={anchorLodging}
+                  disabled={anchorLodgingSaving || scheduling}
+                  onChange={(e) =>
+                    void handleAnchorLodgingChange(e.target.checked)
+                  }
+                />
+                住宿銜接
+              </label>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-violet-200 text-violet-800 hover:bg-violet-50"
+                onClick={() => void autoSchedule()}
+                disabled={scheduling || anchorLodgingSaving}
+              >
+                {scheduling ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                一鍵排程
+              </Button>
+            </div>
           </div>
           {scheduleMsg && (
             <p className="mt-2 text-xs text-violet-700">{scheduleMsg}</p>
+          )}
+          {anchorLodging && !hasLodging && (
+            <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-2 text-xs text-amber-900">
+              尚未標記住宿：請在主線新增飯店並勾選「🏨
+              標記為住宿」，再切換地圖至單日（Day 1、Day 2…）即可看到路線起訖
+            </p>
           )}
         </div>
 
@@ -333,6 +388,7 @@ export function TimelinePanel({
         spot={editingSpot}
         previousSpot={previousEditingSpot}
         open={editOpen && !mapPickPending}
+        showLodgingToggle={editIsTrunk}
         onOpenChange={(open) => {
           if (!open && mapPickPending) {
             setMapPickPending(false);

@@ -103,7 +103,7 @@ export function TripAuthBar({
         alert(data.error ?? "複製失敗");
         return;
       }
-      router.push(`/trip/${data.seedCode}`);
+      router.push(`/trip/${data.seedCode}?guide=1`);
     } catch (e) {
       console.error(e);
       alert("複製失敗");

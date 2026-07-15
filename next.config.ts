@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "zh.wikipedia.org" },
       { protocol: "https", hostname: "en.wikipedia.org" },
       { protocol: "https", hostname: "ja.wikipedia.org" },
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "live.staticflickr.com" },
+      { protocol: "https", hostname: "**.openverse.org" },
     ],
   },
 };

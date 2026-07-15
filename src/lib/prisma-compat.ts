@@ -27,6 +27,7 @@ export function isPrismaMissingColumn(error: unknown): boolean {
 }
 
 export function isPrismaSchemaMismatch(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientValidationError) return true;
   return (
     isPrismaMissingTable(error) ||
     isPrismaMissingColumn(error) ||

@@ -5,6 +5,7 @@ import { findTripById } from "@/lib/load-trip";
 import { isPrismaSchemaMismatch } from "@/lib/prisma-compat";
 import { DEFAULT_TRIP_TASKS } from "@/lib/trip-tasks";
 import { serializeTrip } from "@/lib/trip-serializer";
+import { saveTripHandbookForTripId } from "@/lib/save-trip-handbook";
 import type { DiscoverCard } from "@/types/discover";
 
 export async function plantTripFromLikedCards(options: {
@@ -71,7 +72,7 @@ export async function plantTripFromLikedCards(options: {
         name: card.name,
         latitude: card.latitude,
         longitude: card.longitude,
-        notes: `${card.category === "food" ? "🍽️" : "📍"} ${card.description} · 聲量 ${card.popularity}`,
+        notes: `${card.category === "food" ? "🍽️" : "📍"} ${card.description}${card.area ? `（${card.area}）` : ""} · 聲量 ${card.popularity}`,
         openHours: card.category === "food" ? "建議預約或離峰" : undefined,
         isTrunk: true,
         sortOrder: i,
@@ -117,6 +118,12 @@ export async function plantTripFromLikedCards(options: {
 
   const full = await findTripById(trip.id);
   if (!full) throw new Error("Trip not found after create");
+
+  try {
+    await saveTripHandbookForTripId(trip.id, { destinationLabel: destLabel });
+  } catch (error) {
+    console.error("Failed to save trip handbook after plant", error);
+  }
 
   return { seedCode, trip: serializeTrip(full) };
 }

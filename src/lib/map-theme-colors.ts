@@ -6,12 +6,14 @@ export type MapThemeColors = {
   trunk: { bg: string; border: string; text: string };
   sprout: { bg: string; border: string; text: string };
   route: { all: string; day: string; focus: string };
+  lodging: { bg: string; border: string; text: string };
 };
 
 const FALLBACK: MapThemeColors = {
   trunk: { bg: "#059669", border: "#047857", text: "#ffffff" },
   sprout: { bg: "#ecfccb", border: "#65a30d", text: "#14532d" },
   route: { all: "#059669", day: "#10b981", focus: "#65a30d" },
+  lodging: { bg: "#7c3aed", border: "#5b21b6", text: "#ffffff" },
 };
 
 function cssVar(name: string, fallback: string): string {
@@ -39,6 +41,11 @@ export function readMapThemeColors(): MapThemeColors {
       all: cssVar("--map-route-all", FALLBACK.route.all),
       day: cssVar("--map-route-day", FALLBACK.route.day),
       focus: cssVar("--map-route-focus", FALLBACK.route.focus),
+    },
+    lodging: {
+      bg: cssVar("--map-lodging-bg", FALLBACK.lodging.bg),
+      border: cssVar("--map-lodging-border", FALLBACK.lodging.border),
+      text: cssVar("--map-lodging-text", FALLBACK.lodging.text),
     },
   };
 }

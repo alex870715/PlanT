@@ -38,6 +38,7 @@ model Trip {
   accessGrants TripAccessGrant[]
   magicTokens  TripMagicToken[]
   hostUser     User? @relation("TripHostUser", fields: [hostUserId], references: [id], onDelete: SetNull)
+  handbook     TripHandbook?
 }
 
 model MatchRoom {
@@ -334,4 +335,20 @@ model TripMemberPresence {
 
   @@unique([tripId, memberId])
   @@index([tripId])
+}
+
+/** 建立行程時自動生成的圖文導覽手冊（童話繪本風） */
+model TripHandbook {
+  id          String   @id @default(cuid())
+  tripId      String   @unique
+  /** fairy-tale 等主題 id */
+  theme       String   @default("fairy-tale")
+  /** 每日路線以住宿為起訖點 */
+  anchorLodging Boolean  @default(true)
+  purpose     String   @db.Text
+  slides      Json
+  generatedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  trip Trip @relation(fields: [tripId], references: [id], onDelete: Cascade)
 }

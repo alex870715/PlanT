@@ -25,6 +25,12 @@ import {
 import { computeMapViewTarget } from "@/lib/map-view";
 import { useMapThemeColors, type MapThemeColors } from "@/lib/map-theme-colors";
 import { partitionSpots, sortSpotsByOrder } from "@/lib/spots";
+import {
+  buildAnchoredMapRoute,
+  extractMapDayDateKey,
+  isLodgingSpot,
+  resolveLodgingForDay,
+} from "@/lib/spot-category";
 import type { SpotDto } from "@/types/trip";
 import "leaflet/dist/leaflet.css";
 
@@ -47,6 +53,8 @@ type TripMapInnerProps = {
   onSpotLocationChange?: (spotId: string, lat: number, lng: number) => void;
   /** 設定後＝聚焦某團員：地圖只顯示主幹＋此人支線，並串成一條路線 */
   focusMemberId?: string | null;
+  /** 每日路線以住宿為起訖點（地圖） */
+  anchorLodging?: boolean;
 };
 
 function MapClickPick({
@@ -111,6 +119,25 @@ function MapViewSync({
   }, [map]);
 
   return null;
+}
+
+function createLodgingIcon(colors: MapThemeColors) {
+  const size = 40;
+  return L.divIcon({
+    className: "plant-map-marker",
+    html: `<div style="
+      display:flex;align-items:center;justify-content:center;
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:${colors.lodging.bg};border:3px solid ${colors.lodging.border};
+      box-shadow:0 2px 10px rgba(0,0,0,0.28);
+      font-size:18px;
+      font-weight:700;color:${colors.lodging.text};font-family:system-ui,sans-serif;
+      cursor:pointer;
+    ">🏨</div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    popupAnchor: [0, -size / 2],
+  });
 }
 
 function createNumberedIcon(
@@ -257,6 +284,7 @@ export function TripMapInner({
   onMapPickCancel,
   onSpotLocationChange,
   focusMemberId,
+  anchorLodging = true,
 }: TripMapInnerProps) {
   const focusMode = !!focusMemberId;
   const mapColors = useMapThemeColors();
@@ -303,15 +331,44 @@ export function TripMapInner({
   const visibleSprouts = activeFilter.sproutSpots;
   const visibleAll = [...visibleTrunk, ...visibleSprouts];
 
+  const allLodgings = useMemo(
+    () => allTrunk.filter((s) => isLodgingSpot(s.name, s.notes)),
+    [allTrunk]
+  );
+
+  const dayLodging = useMemo(() => {
+    if (isAllView || focusMode || !anchorLodging) return null;
+    const dateKey = extractMapDayDateKey(activeFilter.id);
+    if (!dateKey) return null;
+    return resolveLodgingForDay(visibleTrunk, allLodgings, dateKey);
+  }, [
+    isAllView,
+    focusMode,
+    anchorLodging,
+    activeFilter.id,
+    visibleTrunk,
+    allLodgings,
+  ]);
+
+  const mapTrunkForRoute = useMemo(() => {
+    if (!dayLodging) return visibleTrunk;
+    return buildAnchoredMapRoute(visibleTrunk, dayLodging, true);
+  }, [visibleTrunk, dayLodging]);
+
+  const mapTrunkMarkers = useMemo(() => {
+    if (!dayLodging) return visibleTrunk;
+    return visibleTrunk.filter((s) => s.id !== dayLodging.id);
+  }, [visibleTrunk, dayLodging]);
+
   const mapViewTarget = useMemo(
-    () => computeMapViewTarget(visibleTrunk, visibleSprouts, isAllView),
-    [visibleTrunk, visibleSprouts, isAllView, selectedDayId]
+    () => computeMapViewTarget(mapTrunkForRoute, visibleSprouts, isAllView),
+    [mapTrunkForRoute, visibleSprouts, isAllView, selectedDayId]
   );
 
   const mapViewKey = useMemo(
     () =>
-      `${selectedDayId}|${visibleTrunk.map((s) => s.id).join(",")}|${visibleSprouts.map((s) => s.id).join(",")}`,
-    [selectedDayId, visibleTrunk, visibleSprouts]
+      `${selectedDayId}|${anchorLodging}|${dayLodging?.id ?? ""}|${mapTrunkForRoute.map((s) => s.id).join(",")}|${visibleSprouts.map((s) => s.id).join(",")}`,
+    [selectedDayId, anchorLodging, dayLodging, mapTrunkForRoute, visibleSprouts]
   );
 
   const mapFocus = useMemo(() => {
@@ -341,9 +398,9 @@ export function TripMapInner({
   const routePositions = useMemo(() => {
     const ordered = focusMode
       ? sortSpotsByOrder([...visibleTrunk, ...visibleSprouts])
-      : visibleTrunk;
+      : mapTrunkForRoute;
     return ordered.map((s) => [s.latitude, s.longitude] as [number, number]);
-  }, [focusMode, visibleTrunk, visibleSprouts]);
+  }, [focusMode, visibleTrunk, visibleSprouts, mapTrunkForRoute]);
 
   const globalTrunkOrder = useMemo(() => {
     const groups = groupSpotsByDay(allTrunk, tripStartDate, tripEndDate);
@@ -439,7 +496,36 @@ export function TripMapInner({
             />
           )}
 
-          {visibleTrunk.map((spot, index) => {
+          {dayLodging && (
+            <Marker
+              key={`lodging-${dayLodging.id}-${mapColors.lodging.bg}`}
+              position={[dayLodging.latitude, dayLodging.longitude]}
+              icon={createLodgingIcon(mapColors)}
+              zIndexOffset={1200}
+              draggable={draggableSpotId === dayLodging.id}
+              eventHandlers={{
+                dragend: (e) => {
+                  if (draggableSpotId !== dayLodging.id) return;
+                  const { lat, lng } = e.target.getLatLng();
+                  onSpotLocationChange?.(dayLodging.id, lat, lng);
+                },
+              }}
+            >
+              <Popup>
+                <SpotPopup
+                  orderLabel="🏨 住宿 · 起點／終點"
+                  spot={dayLodging}
+                  variant="trunk"
+                  dayLabel={activeFilter.label}
+                  onExplore={() => onSpotExplore?.(dayLodging)}
+                  onEdit={() => onSpotEdit?.(dayLodging)}
+                  onMove={() => onSpotMove?.(dayLodging)}
+                />
+              </Popup>
+            </Marker>
+          )}
+
+          {mapTrunkMarkers.map((spot, index) => {
             const order = isAllView
               ? globalTrunkOrder.get(spot.id) ?? "?"
               : String(index + 1);
@@ -516,13 +602,16 @@ export function TripMapInner({
           <p className="font-medium text-emerald-900">{tripTitle}</p>
           <p className="mt-0.5 text-emerald-700">{activeFilter.label}</p>
           <p className="mt-1 text-[10px] text-muted-foreground">
-            主幹 {visibleTrunk.length} 站
+            主幹 {mapTrunkMarkers.length} 站
+            {dayLodging ? " · 🏨 住宿銜接" : ""}
             {visibleSprouts.length > 0
               ? ` · 支線 ${visibleSprouts.length}`
               : ""}
             {focusMode
               ? " · 已串接個人支線 1→S1→2"
-              : !isAllView && " · 依日編號 1→N"}
+              : !isAllView && dayLodging
+                ? " · 路線：住宿→景點→住宿"
+                : !isAllView && " · 依日編號 1→N"}
           </p>
         </div>
 

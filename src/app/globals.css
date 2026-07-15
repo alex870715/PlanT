@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "./color-themes.css";
+@import "./handbook-themes.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -172,5 +173,39 @@
         oklch(0.94 calc(var(--theme-c-info) * 0.45) var(--theme-h-info) / 0.3),
         transparent
       );
+  }
+}
+
+/* 導覽手冊列印 */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .handbook-print-area,
+  .handbook-print-area * {
+    visibility: visible;
+  }
+
+  .handbook-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    background: white !important;
+  }
+
+  .handbook-slide-shell {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  .handbook-slide {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1rem;
   }
 }
